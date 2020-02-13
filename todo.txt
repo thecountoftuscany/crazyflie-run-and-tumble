@@ -17,6 +17,6 @@ DEADLINE: <2020-02-12 Wed>
 * Project work
 ** DONE Test run and tumble algorithm in simulation
 CLOSED: [2020-02-10 Mon 20:13]
-Started [[./run-and-tumble/simulation.py][here]]
+Started [[./simulation.py][here]]
 ** Add range finder and light sensor to crazyflie
 ** Get data from both sensors
