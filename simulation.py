@@ -180,10 +180,14 @@ def main():
         robot_y += v*sin(bot.phi)
         robot_phi += omega
         intensity_last = intensity
+        # Update position of light sources
+        for i in range (num_obsts):
+            obsts[i].x += int(1.5 * sin(0.02*pg.time.get_ticks()))
+            obsts[i].y += int(1.5 * sin(0.02*pg.time.get_ticks()))
 
         # FPS. Print if required
         # clock.tick(300)     # To limit fps, controls speed of the animation
-        # fps = (frames*1000)/(pygame.time.get_ticks() - ticks)   # calculate current fps
+        # fps = (frames*1000)/(pg.time.get_ticks() - ticks)   # calculate current fps
 
         # Update PyGame display
         pg.display.flip()
