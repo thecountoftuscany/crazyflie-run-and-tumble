@@ -180,7 +180,7 @@ def main():
         robot_y += v*sin(bot.phi)
         robot_phi += omega
         intensity_last = intensity
-        # Update position of light sources
+        # Update position of obstacles
         for i in range (num_obsts):
             obsts[i].x += int(1.5 * sin(0.02*pg.time.get_ticks()))
             obsts[i].y += int(1.5 * sin(0.02*pg.time.get_ticks()))
