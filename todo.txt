@@ -1,0 +1,22 @@
+-*- mode: org -*-
+
+#+Title: Run and tumble project todo
+
+* Course requirements
+** TODO Pre proposal
+DEADLINE: <2020-02-12 Wed>
+*** Big picture idea
+- Searching for algae in oceans using a group of drones
+*** Implementation details
+- Light sensor to navigate towards light source + rangefinder to avoid obstacles
+- Two ways possible for obstacle avoidance:
+  - Paranoid avoidance without mapping
+  - Creating a map using rangefinder
+** Poster / report
+
+* Project work
+** DONE Test run and tumble algorithm in simulation
+CLOSED: [2020-02-10 Mon 20:13]
+Started [[./run-and-tumble/simulation.py][here]]
+** Add range finder and light sensor to crazyflie
+** Get data from both sensors
