@@ -1,0 +1,39 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+%\usepackage{biblatex}
+\usepackage{setspace}
+\onehalfspacing
+\setlength\parindent{0pt}
+\setlength{\parskip}{0.75em}
+\usepackage[margin=1.2in, top=0.8in, bottom=0.5in]{geometry}
+\pagenumbering{gobble}
+% \addbibresource{references.bib}
+% \usepackage{graphicx}
+% \graphicspath{ {./images} }
+\usepackage{color}
+\date{}
+
+\begin{document}
+
+\begin{center}
+    \huge{\textbf{ME 586 Project Pre proposal}\\}
+    \vspace{0.3em}
+    \Large{Nishant Elkunchwar, Krishna Balasubramanian, Jessica Noe}
+    \rule{6.1in}{0.2pt}
+\end{center}
+\vspace{-2em}
+\section*{Technical Need}
+Humans often need to find the source of a light, chemical, or odor in an open environment filled with obstacles. In an emergency situation, tracking a natural gas plume back to the source to find the leak could save lives. Tracking the light of a cell phone or flashlight could locate survivors in damaged buildings after an earthquake. Tracking a toxic algae plume with an aerial drone detecting water color could lead to sources of pollution.
+\par
+Small, robust flying robots such as a quadrotor are one option to assist these searches. A variety of sensors are available for these platforms, making them suitable for many different sensing tasks. Our research goal is to demonstrate autonomous quadrotor control that can combine effective object avoidance with an efficient search method to find the source of a light.
+
+\section*{Research plan}
+Each development phase of the autonomous control algorithms will iterate as needed through simulation implementation and then physical testing on the Crazyflie 2.1 quadrotor. Results during physical testing will be used to improve the simulation and to revise algorithms. The testing environment will contain randomly placed objects blocking the quadrotor's path to a lightsource (lightbulb). The exact specifications of the environment will be determined after completing characterization tests of the light sensor.
+\par
+The first search method tested will be a biologically inspired ``run-and-tumble" algorithm, as observed in bacterial chemotaxis, in a planar environment (constant altitude). The ``run-and-tumble'' algorithm will receive light sensor data as an argument and output a movement command based on the value of the light sensor data. The quadrotor continues on the same path (i.e. ``run") if the light sensor detects similar or increasing lux compared to previous values, while decreasing lux causes the quadrotor to move in a random direction (i.e. ``tumble"). If similar lux values are detected for longer than a set time, another tumble may be necessary to find a direction that moves up the gradient.
+ \par
+A Crazyflie Multi-ranger 5-direction laser range-finder will detect distance to objects to the front, back, left, right, and above the quadrotor. Initial simulations and tests will use a simple avoidance algorithm, such as turning 90 degrees or more away from the detected object. If time allows, additional avoidance methods will be researched and tested. The obstacles will have random size and will be randomly placed throughout the map. 
+\par
+The high level control of the Crazyflie will be handled by ROS. Nodes will be set up to run the algorithms for run and tumble, object avoidance, and to control switching back and forth between modes. Using ROS as a backbone will allow additional capabilities to be programmed as time allows.
+
+\end{document}
