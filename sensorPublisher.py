@@ -1,7 +1,8 @@
 import rospy
 import rospy_crazyflie.crazyflie_client as crazyflie_client
 from rospy_crazyflie.crazyflie_client import CrazyflieClient
-from rospy_crazyflie.msg import KalmanPositionEst
+from rospy_crazyflie.srv import *
+from rospy_crazyflie.msg import *
 import sys
 
 class bCrazyflie:

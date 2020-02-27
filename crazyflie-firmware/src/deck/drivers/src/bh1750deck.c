@@ -60,7 +60,6 @@ void bh1750Task(void* arg)
 
   // Write mode to sensor
   i2cdevWriteByte(I2C1_DEV, (uint8_t)BH1750I2CAddr, I2CDEV_NO_MEM_ADDR, (uint8_t)CONT_HI_RES_MODE);
-  //i2cdevWrite(I2C1_DEV, (uint8_t)BH1750I2CAddr, 1, (uint8_t)CONT_HI_RES_MODE);
 
   xLastWakeTime = xTaskGetTickCount();
 
@@ -68,11 +67,8 @@ void bh1750Task(void* arg)
     vTaskDelayUntil(&xLastWakeTime, M2T(120));
    
     // Read two bytes from the sensor
-    //i2cdevReadByte(I2C1_DEV, (uint8_t)BH1750I2CAddr, I2CDEV_NO_MEM_ADDR, &dataHB);
-    //i2cdevReadByte(I2C1_DEV, (uint8_t)BH1750I2CAddr, I2CDEV_NO_MEM_ADDR, &dataLB);
     i2cdevRead(I2C1_DEV, (uint8_t)BH1750I2CAddr, 2, &intensitydata);
     // Combine the two bytes to get data
-    //intensity = dataHB << 8 | dataLB;
     intensity = intensitydata[0] << 8 | intensitydata[1];
     intensity = intensity/conv_factor;
     //DEBUG_PRINT("Light reading is: %f\n", data);
