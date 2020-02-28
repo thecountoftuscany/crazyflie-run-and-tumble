@@ -5,56 +5,74 @@ from rospy_crazyflie.srv import *
 from rospy_crazyflie.msg import *
 import sys
 
-class bCrazyflie:
+class bcfPublisher:
     def __init__(self):
         # Init node
         rospy.init_node('bcf_sensor_publisher')
 
-        # Attributes
-        self.logvars = [LogVariable('stateEstimate.x', 'float'),
-                        LogVariable('stateEstimate.y', 'float'),
-                        LogVariable('stateEstimate.z', 'float'),
-                        LogVariable('BH1750.intensity', 'float'),
-                        LogVariable('range.left', 'float'),
-                        LogVariable('range.front', 'float'),
-                        LogVariable('range.right', 'float'),
-                        LogVariable('range.back', 'float'),
-                        LogVariable('range.up', 'float')]
-        # Intensity and range publishers to be added later
+        # Log variables
+        self.stateLogvars = [LogVariable('stateEstimate.x', 'float'),
+                             LogVariable('stateEstimate.y', 'float'),
+                             LogVariable('stateEstimate.z', 'float')]
+        self.light_rangeLogvars = [LogVariable('BH1750.intensity', 'float'),
+                                   LogVariable('range.left', 'float'),
+                                   LogVariable('range.front', 'float'),
+                                   LogVariable('range.right', 'float'),
+                                   LogVariable('range.back', 'float'),
+                                   LogVariable('range.up', 'float')]
+
+        # Publishers
         self.state_publisher = rospy.Publisher('bcf_state', KalmanPositionEst, queue_size=10)
-        # self.intensity_publisher = rospy.Publisher('bcf_intensity', TYPE???, queue_size=10)
-        # self.range_publisher = rospy.Publisher('bcf_range', TYPE???, queue_size=10)
+        self.intensity_publisher = rospy.Publisher('bcf_intensity', LightData, queue_size=10)
+        self.range_publisher = rospy.Publisher('bcf_range', RangeData, queue_size=10)
+
         # Get all crazyflies on the /crazyflie_server
         self.crazyflies = crazyflie_client.get_crazyflies(server='/crazyflie_server')
+
         # Connect to the first crazyflie
         self.client = CrazyflieClient(self.crazyflies[0])
+
+        # Initialize variables to be published with message type
         self.state = KalmanPositionEst()
-        # self.intensity = TYPE???
-        # self.range = TYPE???
+        self.intensity = LightData()
+        self.dists = RangeData()
 
         # Additional stuff
         # Configures the crazyflie to log the data
-        self.client.add_log_config('run-and-tumble-config', self.logvars, 10, callback=self.sensorUpdate)
-        # self.client.take_off(0.2)
-        # self.client.wait()
-        # rospy.spin()
+        self.client.add_log_config('stateEstimateConfig',
+                                   self.stateLogvars,
+                                   10, callback=self.stateUpdate)
+        self.client.add_log_config('light_rangeConfig',
+                                   self.light_rangeLogvars,
+                                   10, callback=self.light_rangeUpdate)
 
-    def sensorUpdate(self, data, timestamp):
-        # Called by the CrazyflieClient object when new data is available
+        # Keep the node running until it is killed
+        rospy.spin()
+
+    def stateUpdate(self, data, timestamp):
+        # Called when crazyflie state is updated
         self.state.stateX = data['stateEstimate.x']
         self.state.stateY = data['stateEstimate.y']
         self.state.stateZ = data['stateEstimate.z']
         self.state.cfstamp = timestamp
-        self.intensity = data['BH1750.intensity']
-        # self.range.left = data['range.left']
-        # self.range.front = data['range.front']
-        # self.range.right = data['range.right']
-        # self.range.back = data['range.back']
-        # self.range.up = data['range.up']
-        # print("x={}, y={}, z={}, light={}, left={}, front={}, right={}, back={}".format(self.x, self.y, self.z, self.intensity, self.rangeLeft, self.rangeFront, self.rangeRight, self.rangeBack))
+        # print("x={},y={},z={}".format(self.state.stateX,
+        #                               self.state.stateY, self.state.stateZ))
         self.state_publisher.publish(self.state)
-        #self.intensity_publisher.publish(self.intensity)
-        #self.range_publisher.publish(self.range)
+
+    def light_rangeUpdate(self, data, timestamp):
+        # Called when light intensity and multiranger data are updated
+        self.intensity.intensity = data['BH1750.intensity']
+        self.dists.left = data['range.left']
+        self.dists.front = data['range.front']
+        self.dists.right = data['range.right']
+        self.dists.back = data['range.back']
+        # print("int={},l={},f={},r={},b={}".format(self.intensity,
+        #                                           self.rangeLeft,
+        #                                           self.rangeFront,
+        #                                           self.rangeRight,
+        #                                           self.rangeBack))
+        self.intensity_publisher.publish(self.intensity)
+        self.range_publisher.publish(self.dists)
 
 if __name__=='__main__':
-    bcf = bCrazyflie()
+    bcf = bcfPublisher()
