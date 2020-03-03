@@ -15,7 +15,7 @@ screen = pg.display.set_mode([screen_width, screen_height],
 vmax = 0.3  # maximum velocity of robot
 K_p_ao = 1.8  # Kp for obstacle avoidance heading controller
 K_p_t = 0.3  # Kp for tumble heading controller
-skirt_r = 40  # Paranoid behavior theshold
+dist_thresh = 40  # Paranoid behavior theshold
 ang_tol = 0.001
 ao_scaling = 5e-5  # velocity scaling for obstacle avoidance
 
@@ -202,24 +202,24 @@ class multiranger():
         self.fd = dists[1]
         self.rd = dists[2]
         self.bd = dists[3]
+        self.lpoint = np.array([self.x+self.ld*cos(self.phi - pi/2), self.y+self.ld*sin(self.phi - pi/2)])
+        self.fpoint = np.array([self.x+self.fd*cos(self.phi), self.y+self.fd*sin(self.phi)])
+        self.rpoint = np.array([self.x+self.rd*cos(self.phi + pi/2), self.y+self.rd*sin(self.phi + pi/2)])
+        self.bpoint = np.array([self.x+self.bd*cos(self.phi + pi), self.y+self.bd*sin(self.phi + pi)])
 
     def show(self):
         # Left sensor
         pg.draw.line(screen, (250, 180, 0), [int(self.x),int(self.y)],
-                     [int(self.x+self.ld*cos(self.phi - pi/2)),
-                      int(self.y+self.ld*sin(self.phi - pi/2))], 2)
+                     [int(self.lpoint[0]), int(self.lpoint[1])], 2)
         # Front sensor
         pg.draw.line(screen, (250, 180, 0), [int(self.x),int(self.y)],
-                     [int(self.x+self.fd*cos(self.phi)),
-                      int(self.y+self.fd*sin(self.phi))], 2)
+                     [int(self.fpoint[0]), int(self.fpoint[1])], 2)
         # Right sensor
         pg.draw.line(screen, (250, 180, 0), [int(self.x),int(self.y)],
-                     [int(self.x+self.rd*cos(self.phi + pi/2)),
-                      int(self.y+self.rd*sin(self.phi + pi/2))], 2)
+                     [int(self.rpoint[0]), int(self.rpoint[1])], 2)
         # Back sensor
         pg.draw.line(screen, (250, 180, 0), [int(self.x),int(self.y)],
-                     [int(self.x+self.bd*cos(self.phi + pi)),
-                      int(self.y+self.bd*sin(self.phi + pi))], 2)
+                     [int(self.bpoint[0]), int(self.bpoint[1])], 2)
 
 
 # Create obstacles
@@ -274,37 +274,39 @@ def main():
         mr.show()
         intensity = simulate_light_sensor([bot.x, bot.y], src_pos, sensor_dev)
         pg.draw.circle(screen, (100, 100, 100),
-                       (int(bot.x), int(bot.y)), skirt_r, 0)  # sensor skirt
+                       (int(bot.x), int(bot.y)), dist_thresh, 0)  # sensor skirt
         for i in range(len(obsts)):
             obsts[i].show()
         bot.show()
         pg.draw.circle(screen, (0, 255, 0), src_pos, 8, 0)  # Draw light source
+
         # Constant intensity circles
         pg.draw.circle(screen, (250, 250, 250), src_pos, 20, 1)
         pg.draw.circle(screen, (200, 200, 200), src_pos, 50, 1)
         pg.draw.circle(screen, (150, 150, 150), src_pos, 100, 1)
         pg.draw.circle(screen, (100, 100, 100), src_pos, 150, 1)
         pg.draw.circle(screen, (60, 60, 60), src_pos, 200, 1)
-
-        # Check if obstacles are in sensor skirt
-        close_obst = []  # list of obstacles in sensor skirt [x, y, r]
-        dist = []  # distances to those obstacles
-        for i in range(num_obsts):
-            d = sqrt((obsts[i].x - robot_x)**2 + (obsts[i].y - robot_y)**2)
-            if(d <= (skirt_r + obsts[i].r)):
-                close_obst.append([obsts[i].x, obsts[i].y, obsts[i].r])
-                dist.append(d)
+        pg.draw.circle(screen, (40, 40, 40), src_pos, 250, 1)
 
         # Run and tumble
-        if(len(close_obst) == 0):  # No obstacle in sensor skirt
+        if(mr.ld > dist_thresh and mr.fd > dist_thresh and mr.rd > dist_thresh and mr.bd > dist_thresh):  # No obstacle in sensor skirt
             if(intensity > intensity_last):
                 [v, omega] = bot.run()  # controller run()
             else:
                 [v, omega] = bot.tumble()  # controller tumble()
         # Paranoid behavior - run away from obstacle
         else:
-            closest_obj = dist.index(min(dist))  # index of the closest object
-            obst_pos = np.array([obsts_x[closest_obj], obsts_y[closest_obj]])
+            # Closest obstacle detected among the 4 directions
+            mrmin = min(mr.ld, mr.fd, mr.rd, mr.bd)
+            mrindex = [mr.ld, mr.fd, mr.rd, mr.bd].index(mrmin)
+            if(mrindex == 0):
+                obst_pos = mr.lpoint
+            elif(mrindex == 1):
+                obst_pos = mr.fpoint
+            elif(mrindex == 2):
+                obst_pos = mr.rpoint
+            else:
+                obst_pos = mr.bpoint
             [v, omega] = bot.avoid_obst(obst_pos)
 
         # Update robot pose as per control input and intensity_last
