@@ -30,6 +30,7 @@ num_obsts = 5
 obsts_min_radius = 20
 obsts_max_radius = 60
 
+
 def simulate_light_sensor(robot_pos, src_pos, std_dev):
     robot_x = robot_pos[0]
     robot_y = robot_pos[1]
@@ -45,7 +46,8 @@ def simulate_rangefinder(robot, obsts):
     phi_r = robot.phi
 
     dist = []  # Left, front, right, back
-    angles = [phi_r - pi/2, phi_r, phi_r + pi/2, phi_r + pi]  # Angles of the 4 sensors
+    angles = [phi_r - pi/2, phi_r,
+              phi_r + pi/2, phi_r + pi]  # Angles of the 4 sensors
     for phi in angles:
         # Constrain angles within [0, 2pi]
         while(phi < 0):
@@ -58,7 +60,8 @@ def simulate_rangefinder(robot, obsts):
             xo = obsts[i].x
             yo = obsts[i].y
             r = obsts[i].r
-            # Intersection of beam with obstacle. Solve beam eqn with obstacle circle eqn
+            # Intersection of beam with obstacle
+            # Solve beam eqn with obstacle circle eqn
             # Quadratic in x coordinate. Coeffs for ax^2+bx+c=0:
             a = 1 + (tan(phi))**2
             b = 2*(tan(phi)*(yr-xr*tan(phi)) - xo - yo*tan(phi))
@@ -66,7 +69,7 @@ def simulate_rangefinder(robot, obsts):
             if(b**2 - 4*a*c == 0):  # Beam is tangent to obstacle
                 # Coords of point where beam hits obstacle
                 xhit = -b/(2*a)
-                yhit = xhit*tan(phi) + yr - xr*tan(phi)  # From equation of beam
+                yhit = xhit*tan(phi) + yr - xr*tan(phi)  # From eqn of beam
                 # Check if obstacle is in front of the sensor
                 dot_prod = cos(phi)*(xo-xr) + sin(phi)*(yo-yr)
                 if(dot_prod > 0):
@@ -75,28 +78,28 @@ def simulate_rangefinder(robot, obsts):
                 # Coords of points where beam hits obstacle
                 xhit1 = (-b + sqrt(b**2-4*a*c))/(2*a)
                 xhit2 = (-b - sqrt(b**2-4*a*c))/(2*a)
-                yhit1 = xhit1*tan(phi) + yr - xr*tan(phi)  # From equation of beam
-                yhit2 = xhit2*tan(phi) + yr - xr*tan(phi)  # From equation of beam
+                yhit1 = xhit1*tan(phi) + yr - xr*tan(phi)  # From eqn of beam
+                yhit2 = xhit2*tan(phi) + yr - xr*tan(phi)  # From eqn of beam
                 dist1 = sqrt((xr-xhit1)**2 + (yr-yhit1)**2)
                 dist2 = sqrt((xr-xhit2)**2 + (yr-yhit2)**2)
                 # Check if obstacle is in front of the sensor
                 dot_prod = cos(phi)*(xo-xr) + sin(phi)*(yo-yr)
                 if(dot_prod > 0):
-                    obsts_dists.append(min(dist1, dist2))  # Choose closer point
+                    obsts_dists.append(min(dist1, dist2))  # Closer point
         if(len(obsts_dists) > 0):  # Beam hits one or more obstacles
             dist.append(min(obsts_dists))  # Choose closest obstacle
         else:  # Beam hits room walls
             if(phi < pi/2 or phi > 3*pi/2):  # Beam facing right wall
                 # Coords of point where beam hits right edge
                 xhit = screen_width
-                yhit = xhit*tan(phi) + yr - xr*tan(phi)  # From equation of beam
-                if(yhit >=0 and yhit <= screen_height):  # Beam hits right edge within room
+                yhit = xhit*tan(phi) + yr - xr*tan(phi)  # From eqn of beam
+                if(yhit >= 0 and yhit <= screen_height):  # Hits r-wall in room
                     dist.append(sqrt((xr-xhit)**2 + (yr-yhit)**2))
                 else:  # Beam hits top or bottom wall
                     if(yhit > screen_height):  # Beam hits bottom wall
                         # Coords of point where beam hits bottom wall
                         yhit = screen_height
-                        xhit = xr + (yhit-yr)/(tan(phi))  # From equation of beam
+                        xhit = xr + (yhit-yr)/(tan(phi))  # From eqn of beam
                     else:  # Beam hits top wall
                         # Coords of point where beam hits top wall
                         yhit = 0
@@ -106,13 +109,13 @@ def simulate_rangefinder(robot, obsts):
                 # Coords of point where beam hits left edge
                 xhit = 0
                 yhit = yr - xr*tan(phi)  # From equation of beam
-                if(yhit >=0 and yhit <= screen_width):  # Beam hits left wall within room
+                if(yhit >= 0 and yhit <= screen_width):  # Hits l-wall in room
                     dist.append(sqrt((xr-xhit)**2 + (yr-yhit)**2))
                 else:  # Beam hits top or bottom wall
                     if(yhit > screen_height):  # Beam hits bottom wall
                         # Coords of point where beam hits bottom wall
                         yhit = screen_height
-                        xhit = xr + (yhit-yr)/(tan(phi))  # From equation of beam
+                        xhit = xr + (yhit-yr)/(tan(phi))  # From eqn of beam
                     else:  # Beam hits top wall
                         yhit = 0
                         xhit = xr - yr/tan(phi)  # From equation of beam
@@ -202,23 +205,27 @@ class multiranger():
         self.fd = dists[1]
         self.rd = dists[2]
         self.bd = dists[3]
-        self.lpoint = np.array([self.x+self.ld*cos(self.phi - pi/2), self.y+self.ld*sin(self.phi - pi/2)])
-        self.fpoint = np.array([self.x+self.fd*cos(self.phi), self.y+self.fd*sin(self.phi)])
-        self.rpoint = np.array([self.x+self.rd*cos(self.phi + pi/2), self.y+self.rd*sin(self.phi + pi/2)])
-        self.bpoint = np.array([self.x+self.bd*cos(self.phi + pi), self.y+self.bd*sin(self.phi + pi)])
+        self.lpoint = np.array([self.x+self.ld*cos(self.phi - pi/2),
+                                self.y+self.ld*sin(self.phi - pi/2)])
+        self.fpoint = np.array([self.x+self.fd*cos(self.phi),
+                                self.y+self.fd*sin(self.phi)])
+        self.rpoint = np.array([self.x+self.rd*cos(self.phi + pi/2),
+                                self.y+self.rd*sin(self.phi + pi/2)])
+        self.bpoint = np.array([self.x+self.bd*cos(self.phi + pi),
+                                self.y+self.bd*sin(self.phi + pi)])
 
     def show(self):
         # Left sensor
-        pg.draw.line(screen, (250, 180, 0), [int(self.x),int(self.y)],
+        pg.draw.line(screen, (250, 180, 0), [int(self.x), int(self.y)],
                      [int(self.lpoint[0]), int(self.lpoint[1])], 2)
         # Front sensor
-        pg.draw.line(screen, (250, 180, 0), [int(self.x),int(self.y)],
+        pg.draw.line(screen, (250, 180, 0), [int(self.x), int(self.y)],
                      [int(self.fpoint[0]), int(self.fpoint[1])], 2)
         # Right sensor
-        pg.draw.line(screen, (250, 180, 0), [int(self.x),int(self.y)],
+        pg.draw.line(screen, (250, 180, 0), [int(self.x), int(self.y)],
                      [int(self.rpoint[0]), int(self.rpoint[1])], 2)
         # Back sensor
-        pg.draw.line(screen, (250, 180, 0), [int(self.x),int(self.y)],
+        pg.draw.line(screen, (250, 180, 0), [int(self.x), int(self.y)],
                      [int(self.bpoint[0]), int(self.bpoint[1])], 2)
 
 
@@ -261,7 +268,8 @@ def main():
         if(event.type == pglocs.KEYDOWN and event.key == pglocs.K_SPACE):
             while(1):
                 event = pg.event.poll()
-                if(event.type == pglocs.KEYDOWN and event.key == pglocs.K_SPACE):
+                if(event.type == pglocs.KEYDOWN and
+                   event.key == pglocs.K_SPACE):
                     break  # Resume if SPC pressed again
                 time.sleep(0.010)  # Wait for 10 ms
         screen.fill((50, 55, 60))  # background
@@ -274,7 +282,8 @@ def main():
         mr.show()
         intensity = simulate_light_sensor([bot.x, bot.y], src_pos, sensor_dev)
         pg.draw.circle(screen, (100, 100, 100),
-                       (int(bot.x), int(bot.y)), dist_thresh, 0)  # sensor skirt
+                       (int(bot.x), int(bot.y)),
+                       dist_thresh, 0)  # threshold radius
         for i in range(len(obsts)):
             obsts[i].show()
         bot.show()
@@ -289,7 +298,8 @@ def main():
         pg.draw.circle(screen, (40, 40, 40), src_pos, 250, 1)
 
         # Run and tumble
-        if(mr.ld > dist_thresh and mr.fd > dist_thresh and mr.rd > dist_thresh and mr.bd > dist_thresh):  # No obstacle in sensor skirt
+        if(mr.ld > dist_thresh and mr.fd > dist_thresh and
+           mr.rd > dist_thresh and mr.bd > dist_thresh):  # No obst
             if(intensity > intensity_last):
                 [v, omega] = bot.run()  # controller run()
             else:
@@ -326,7 +336,7 @@ def main():
 
         # FPS. Print if required
         # clock.tick(300)     # To limit fps, controls speed of the animation
-        # fps = (frames*1000)/(pg.time.get_ticks() - ticks)   # calculate current fps
+        # fps = (frames*1000)/(pg.time.get_ticks() - ticks)  # calculate fps
 
         # Update PyGame display
         pg.display.flip()
