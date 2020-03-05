@@ -146,6 +146,9 @@ def simulate_rangefinder(robot, obsts):
 
 
 def pgloop(inputs, t=0.010):
+    '''
+    PyGame loop
+    '''
     v = inputs[0]
     dir_x = inputs[1]
     dir_y = inputs[2]
@@ -163,7 +166,7 @@ def pgloop(inputs, t=0.010):
                 time.sleep(0.010)  # Wait for 10 ms
         screen.fill((50, 55, 60))  # background
 
-        draw(bot, mr)
+        draw()
 
         # Update robot attributes
         bot.x += v*dir_x
@@ -212,17 +215,16 @@ def pgloop(inputs, t=0.010):
 
 
 class robot():
-    def __init__(self, init_pos, init_ang, size,
-                 intensity=init_intensity, intensity_last=0):
+    def __init__(self, init_pos, init_ang, size):
         '''
-        Args: [init_x, init_y], init_ang, [l, b], intensity, intensity_last
+        Args: [init_x, init_y], init_ang, [l, b]
         '''
         self.x = init_pos[0]
         self.y = init_pos[1]
         self.pos = [self.x, self.y]
         self.phi = init_ang
-        self.intensity = intensity
-        self.intensity_last = intensity_last
+        self.intensity = random.random()
+        self.intensity_last = 0
         self.length = size[0]
         self.breadth = size[1]
 
@@ -454,10 +456,13 @@ distances = simulate_rangefinder(bot, obsts)
 mr = multiranger(bot, distances)
 
 
-def draw(robot, mr):
+def draw():
+    '''
+    Draw stuff to PyGame screen
+    '''
     # Threshold radius
     pg.draw.circle(screen, (100, 100, 100),
-                   (int(robot.x), int(robot.y)),
+                   (int(bot.x), int(bot.y)),
                    dist_thresh, 0)
     # Constant intensity circles
     pg.draw.circle(screen, (250, 250, 250), src_pos, 20, 1)
@@ -467,28 +472,20 @@ def draw(robot, mr):
     pg.draw.circle(screen, (60, 60, 60), src_pos, 200, 1)
     pg.draw.circle(screen, (40, 40, 40), src_pos, 250, 1)
     # Multiranger beams
-    pg.draw.line(screen, (250, 180, 0), [int(mr.x), int(mr.y)],
-                 [int(mr.lpoint[0]), int(mr.lpoint[1])], 2)  # Left
-    pg.draw.line(screen, (250, 180, 0), [int(mr.x), int(mr.y)],
-                 [int(mr.fpoint[0]), int(mr.fpoint[1])], 2)  # Front
-    pg.draw.line(screen, (250, 180, 0), [int(mr.x), int(mr.y)],
-                 [int(mr.rpoint[0]), int(mr.rpoint[1])], 2)  # Right
-    pg.draw.line(screen, (250, 180, 0), [int(mr.x), int(mr.y)],
-                 [int(mr.bpoint[0]), int(mr.bpoint[1])], 2)  # Back
+    mr.show()
     # Robot
-    pg.draw.polygon(screen, (255, 0, 0),
-                    [robot.tip, robot.bottom_l, robot.bottom_r], 0)
-    # Robot center pt
-    pg.draw.circle(screen, (250, 180, 0), [int(robot.x), int(robot.y)], 1)
+    bot.show()
     # Obstacles
     for i in range(len(obsts)):
-        pg.draw.circle(screen, (0, 0, 255),
-                       (obsts[i].x, obsts[i].y), obsts[i].r, 0)
+        obsts[i].show()
     # Light source
     pg.draw.circle(screen, (0, 255, 0), src_pos, 8, 0)
 
 
 def main():
+    '''
+    The main function
+    '''
     # PyGame inits
     pg.init()
     pg.display.set_caption('Run and tumble simulation')
@@ -497,37 +494,41 @@ def main():
     # frames = 0
 
     # Commands
-    while(1):
+    while(bot.intensity < max_intensity_thresh):
         # Read light intensity
         bot.intensity = simulate_light_sensor([bot.x, bot.y],
                                               src_pos, light_std)
 
-        if(bot.intensity < max_intensity_thresh):
-            # If no obsts in dist_thresh, run-and-tumble
-            if(mr.ld > dist_thresh and mr.fd > dist_thresh and
-               mr.rd > dist_thresh and mr.bd > dist_thresh):
-                # If intensity is increasing, run
-                if(bot.intensity > bot.intensity_last):
-                    bot.run()
-                # Else tumble to random direction
-                else:
-                    bot.tumble()
-            # Obst(s) detected within dist_thresh. Run away from closest obst
+        # The Finite State Machine #
+        # If no obsts in dist_thresh, run-and-tumble
+        if(mr.ld > dist_thresh and mr.fd > dist_thresh and
+           mr.rd > dist_thresh and mr.bd > dist_thresh):
+            # If intensity is increasing, run
+            if(bot.intensity > bot.intensity_last):
+                bot.run()
+            # Else tumble to random direction
             else:
-                # Closest dist sensed among the 4 directions
-                mrmin = min(mr.ld, mr.fd, mr.rd, mr.bd)
-                mrindex = [mr.ld, mr.fd, mr.rd, mr.bd].index(mrmin)
-                bot.avoid_obst(mrindex)
+                bot.tumble()
+        # Obst(s) detected within dist_thresh. Run away from closest obst
         else:
-            # Congratulatory screen
-            time.sleep(3)
-            screen.fill((50, 55, 60))  # background
-            font = pg.font.SysFont("Hack", 72)
-            success_text = font.render("SUCCESS!!!", True, (0, 128, 0))
-            screen.blit(success_text,
-                        ((screen_width - success_text.get_width())//2,
-                         (screen_height - success_text.get_height())//2))
-            pg.display.flip()
+            # Closest dist sensed among the 4 directions
+            mrmin = min(mr.ld, mr.fd, mr.rd, mr.bd)
+            mrindex = [mr.ld, mr.fd, mr.rd, mr.bd].index(mrmin)
+            bot.avoid_obst(mrindex)
+
+    # If intensity >= max_intensity_thresh, stop
+    pgloop(bot.stop())
+
+    # Congratulatory screen
+    time.sleep(3)
+    screen.fill((50, 55, 60))  # background
+    font = pg.font.SysFont("Hack", 72)
+    success_text = font.render("SUCCESS!!!", True, (0, 128, 0))
+    screen.blit(success_text,
+                ((screen_width - success_text.get_width())//2,
+                    (screen_height - success_text.get_height())//2))
+    pg.display.flip()
+    time.sleep(3)
 
 
 if(__name__ == '__main__'):
