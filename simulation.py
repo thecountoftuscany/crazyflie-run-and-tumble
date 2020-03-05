@@ -21,7 +21,6 @@ dist_thresh = 40  # Paranoid behavior theshold
 src_pos = np.array([int(screen_width/2), int(screen_height/2)])  # Position
 light_std = 0  # Standard deviation for sensor uncertainity
 intensity_scaling = 1e5  # Scaling for inverse square law
-init_intensity = 1e-4  # Initial intensity value
 max_intensity_thresh = 1e4  # Light source declaration at this value
 
 # Circular obstacles
