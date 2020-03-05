@@ -285,10 +285,6 @@ class robot():
     ########################################
     # Unimplemented take_off(), land(), wait()
 
-    # By the nature of how PyGame works, position control
-    # commands had to be implemented as separate functions
-    # and not as methods of this class
-
     # Velocity control commands
     ####################
     # Unimplemented:
