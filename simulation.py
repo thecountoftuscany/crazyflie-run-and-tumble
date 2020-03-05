@@ -13,6 +13,8 @@ screen = pg.display.set_mode([screen_width, screen_height],
 
 # Parameters for robot
 vmax = 0.3  # maximum velocity of robot
+def_vel = 0.3  # default velocity for crazyflie
+def_rate = 0.005  # default angular velocity for crazyflie
 K_p_ao = 1.8  # Kp for obstacle avoidance heading controller
 K_p_t = 0.3  # Kp for tumble heading controller
 dist_thresh = 40  # Paranoid behavior theshold
@@ -31,7 +33,23 @@ obsts_min_radius = 20
 obsts_max_radius = 60
 
 
+def constrain(angle):
+    '''
+    Constrains given angle to [0, 2pi]
+    '''
+    while (angle < 0):
+        angle += 2*pi
+    while (angle >= 2*pi):
+        angle -= 2*pi
+    return angle
+
+
 def simulate_light_sensor(robot_pos, src_pos, std_dev):
+    '''
+    Simulates light sensor.
+    Inputs - [robot.x, robot.y], [src.x, src.y], std_deviation
+    Returns - Light intensity (inverse square to distance, with noise)
+    '''
     robot_x = robot_pos[0]
     robot_y = robot_pos[1]
     src_x = src_pos[0]
@@ -41,6 +59,11 @@ def simulate_light_sensor(robot_pos, src_pos, std_dev):
 
 
 def simulate_rangefinder(robot, obsts):
+    '''
+    Simulates rangefinder.
+    Inputs - robot object, list of all obstacle objects
+    Returns - [left_dist, front_dist, right_dist, back_dist]
+    '''
     xr = robot.x
     yr = robot.y
     phi_r = robot.phi
@@ -50,10 +73,7 @@ def simulate_rangefinder(robot, obsts):
               phi_r + pi/2, phi_r + pi]  # Angles of the 4 sensors
     for phi in angles:
         # Constrain angles within [0, 2pi]
-        while(phi < 0):
-            phi += 2*pi
-        while(phi > 2*pi):
-            phi -= 2*pi
+        phi = constrain(phi)
 
         obsts_dists = []  # Will hold distances to all obstacles hit by beam
         for i in range(len(obsts)):
@@ -151,15 +171,27 @@ class robot():
                          int(self.bottom[1] - self.breadth * cos(self.phi))]
 
     def show(self):
+        '''
+        Draw robot to the screen
+        '''
+        # Robot
         pg.draw.polygon(screen, (255, 0, 0),
                         [self.tip, self.bottom_l, self.bottom_r], 0)
+        # Center pt
+        pg.draw.circle(screen, (250, 180, 0), [int(self.x), int(self.y)], 1)
 
     def run(self):
+        '''
+        Run controller
+        '''
         v = vmax
         omega = 0
         return [v, omega]
 
     def tumble(self):
+        '''
+        Tumble controller
+        '''
         v = 0
         phi_d = self.phi + (2*pi)*random.random()
         # phi_d = self.phi + pi/2
@@ -170,6 +202,9 @@ class robot():
         return [v, omega]
 
     def avoid_obst(self, obst_pos):
+        '''
+        Avoid obstacle controller
+        '''
         e = obst_pos - self.pos  # error in position
         K = vmax * (1 - np.exp(- ao_scaling * np.linalg.norm(e)**2))\
             / np.linalg.norm(e)  # Scaling for velocity
@@ -178,6 +213,102 @@ class robot():
         omega = K_p_ao*atan2(sin(phi_d - self.phi),
                              cos(phi_d - self.phi))  # P controller for omega
         return [v, omega]
+
+    ########################################
+    # Crazyflie client methods
+    ########################################
+    # Unimplemented take_off(), land(), wait()
+
+    # Velocity commands
+    ####################
+    # Unimplemented:
+    # start_up(), start_down()
+    # start_circle_left(), start_circle_right()
+
+    def start_left(self, velocity=def_vel):
+        '''
+        Start moving left
+        '''
+        theta = constrain(self.phi - pi/2)
+        dir_x = cos(theta)
+        dir_y = sin(theta)
+        omega = 0
+        return [velocity, dir_x, dir_y, omega]
+
+    def start_right(self, velocity=def_vel):
+        '''
+        Start moving right
+        '''
+        theta = constrain(self.phi + pi/2)
+        dir_x = cos(theta)
+        dir_y = sin(theta)
+        omega = 0
+        return [velocity, dir_x, dir_y, omega]
+
+    def start_forward(self, velocity=def_vel):
+        '''
+
+        Start moving forward
+        '''
+        theta = constrain(self.phi)
+        dir_x = cos(theta)
+        dir_y = sin(theta)
+        omega = 0
+        return [velocity, dir_x, dir_y, omega]
+
+    def start_back(self, velocity=def_vel):
+        '''
+
+        Start moving backward
+        '''
+        theta = constrain(self.phi - pi)
+        dir_x = cos(theta)
+        dir_y = sin(theta)
+        omega = 0
+        return [velocity, dir_x, dir_y, omega]
+
+    def stop(self):
+        '''
+        STOP!
+        '''
+        velocity = 0
+        dir_x = 0
+        dir_y = 0
+        omega = 0
+        return [velocity, dir_x, dir_y, omega]
+
+    def start_turn_left(self, rate=def_rate):
+        '''
+        Start turning left
+        '''
+        velocity = 0
+        dir_x = 0
+        dir_y = 0
+        omega = -rate
+        return [velocity, dir_x, dir_y, omega]
+
+    def start_turn_right(self, rate=def_rate):
+        '''
+        Start turning right
+        '''
+        velocity = 0
+        dir_x = 0
+        dir_y = 0
+        omega = rate
+        return [velocity, dir_x, dir_y, omega]
+
+    def start_linear_motion(self, vel_x, vel_y):
+        '''
+        Start a linear motion
+        Positive X is forward
+        Positive Y is left
+        '''
+        velocity = sqrt(vel_x**2 + vel_y**2)
+        theta = constrain(self.phi - atan2(vel_y, vel_x))
+        dir_x = cos(theta)
+        dir_y = sin(theta)
+        omega = 0
+        return [velocity, dir_x, dir_y, omega]
 
 
 class obstacle():
@@ -215,6 +346,9 @@ class multiranger():
                                 self.y+self.bd*sin(self.phi + pi)])
 
     def show(self):
+        '''
+        Draw multiranger beams to the screen
+        '''
         # Left sensor
         pg.draw.line(screen, (250, 180, 0), [int(self.x), int(self.y)],
                      [int(self.lpoint[0]), int(self.lpoint[1])], 2)
@@ -297,38 +431,35 @@ def main():
         pg.draw.circle(screen, (60, 60, 60), src_pos, 200, 1)
         pg.draw.circle(screen, (40, 40, 40), src_pos, 250, 1)
 
-        # Run and tumble
-        if(mr.ld > dist_thresh and mr.fd > dist_thresh and
-           mr.rd > dist_thresh and mr.bd > dist_thresh):  # No obst
-            if(intensity > intensity_last):
-                [v, omega] = bot.run()  # controller run()
-            else:
-                [v, omega] = bot.tumble()  # controller tumble()
-        # Paranoid behavior - run away from obstacle
-        else:
-            # Closest obstacle detected among the 4 directions
-            mrmin = min(mr.ld, mr.fd, mr.rd, mr.bd)
-            mrindex = [mr.ld, mr.fd, mr.rd, mr.bd].index(mrmin)
-            if(mrindex == 0):
-                obst_pos = mr.lpoint
-            elif(mrindex == 1):
-                obst_pos = mr.fpoint
-            elif(mrindex == 2):
-                obst_pos = mr.rpoint
-            else:
-                obst_pos = mr.bpoint
-            [v, omega] = bot.avoid_obst(obst_pos)
+        [v, dir_x, dir_y, omega] = bot.start_linear_motion(0, 0.3)
+        # # Run and tumble
+        # if(mr.ld > dist_thresh and mr.fd > dist_thresh and
+        #    mr.rd > dist_thresh and mr.bd > dist_thresh):  # No obst
+        #     if(intensity > intensity_last):
+        #         [v, omega] = bot.run()  # controller run()
+        #     else:
+        #         [v, omega] = bot.tumble()  # controller tumble()
+        # # Paranoid behavior - run away from obstacle
+        # else:
+        #     # Closest obstacle detected among the 4 directions
+        #     mrmin = min(mr.ld, mr.fd, mr.rd, mr.bd)
+        #     mrindex = [mr.ld, mr.fd, mr.rd, mr.bd].index(mrmin)
+        #     if(mrindex == 0):
+        #         obst_pos = mr.lpoint
+        #     elif(mrindex == 1):
+        #         obst_pos = mr.fpoint
+        #     elif(mrindex == 2):
+        #         obst_pos = mr.rpoint
+        #     else:
+        #         obst_pos = mr.bpoint
+        #     [v, omega] = bot.avoid_obst(obst_pos)
 
-        # Update robot pose as per control input and intensity_last
-        robot_x += v*cos(bot.phi)
-        robot_y += v*sin(bot.phi)
-        robot_phi += omega
-        # Constrain the angle in [0, 2pi]
-        while(robot_phi > 2*pi):
-            robot_phi -= 2*pi
-        while(robot_phi < 0):
-            robot_phi += 2*pi
-        intensity_last = intensity
+        # # Update robot pose as per control input and intensity_last
+        robot_x += v*dir_x
+        robot_y += v*dir_y
+        robot_phi = constrain(robot_phi + omega)
+        # intensity_last = intensity
+
         # Update position of obstacles
         # for i in range(num_obsts):
         #     obsts[i].x += int(1.5 * sin(0.02*pg.time.get_ticks()))
