@@ -4,6 +4,7 @@ import pygame.locals as pglocs
 from math import sin, cos, tan, atan2, sqrt, pi
 import random
 import time
+from collections import deque
 
 # Screen
 screen_width = 700
@@ -12,20 +13,16 @@ screen = pg.display.set_mode([screen_width, screen_height],
                              pglocs.DOUBLEBUF)
 
 # Parameters for robot
-vmax = 0.3  # maximum velocity of robot
-def_vel = 0.3  # default velocity for crazyflie
-def_rate = 0.005  # default angular velocity for crazyflie
-K_p_ao = 1.8  # Kp for obstacle avoidance heading controller
-K_p_t = 0.3  # Kp for tumble heading controller
+def_vel = 0.3  # Default velocity for crazyflie
+def_rate = 0.005  # Default angular velocity for crazyflie
 dist_thresh = 40  # Paranoid behavior theshold
-ang_tol = 0.001
-ao_scaling = 5e-5  # velocity scaling for obstacle avoidance
 
 # Light source
-src_pos = np.array([int(screen_width/2), int(screen_height/2)])  # position
-sensor_dev = 0  # standard deviation for sensor uncertainity
-intensity_scaling = 1e5  # scaling for inverse square law
-init_intensity = 1e-4
+src_pos = np.array([int(screen_width/2), int(screen_height/2)])  # Position
+light_std = 0  # Standard deviation for sensor uncertainity
+intensity_scaling = 1e5  # Scaling for inverse square law
+init_intensity = 1e-4  # Initial intensity value
+max_intensity_thresh = 1e4  # Light source declaration at this value
 
 # Circular obstacles
 num_obsts = 5
@@ -148,16 +145,84 @@ def simulate_rangefinder(robot, obsts):
     return dist
 
 
+def pgloop(inputs, t=0.010):
+    v = inputs[0]
+    dir_x = inputs[1]
+    dir_y = inputs[2]
+    omega = inputs[3]
+    init_time = time.time()
+    while(time.time() < init_time + t):  # Do this for t seconds
+        event = pg.event.poll()
+        # Pause if SPC is pressed
+        if(event.type == pglocs.KEYDOWN and event.key == pglocs.K_SPACE):
+            while(1):
+                event = pg.event.poll()
+                if(event.type == pglocs.KEYDOWN and
+                   event.key == pglocs.K_SPACE):
+                    break  # Resume if SPC pressed again
+                time.sleep(0.010)  # Wait for 10 ms
+        screen.fill((50, 55, 60))  # background
+
+        draw(bot, mr)
+
+        # Update robot attributes
+        bot.x += v*dir_x
+        bot.y += v*dir_y
+        bot.phi = constrain(bot.phi + omega)
+        bot.tip = [int(bot.x + bot.length * cos(bot.phi)),
+                   int(bot.y + bot.length * sin(bot.phi))]
+        bot.bottom = [int(bot.x - bot.length * cos(bot.phi)),
+                      int(bot.y - bot.length * sin(bot.phi))]
+        bot.bottom_l = [int(bot.bottom[0] - bot.breadth * sin(bot.phi)),
+                        int(bot.bottom[1] + bot.breadth * cos(bot.phi))]
+        bot.bottom_r = [int(bot.bottom[0] + bot.breadth * sin(bot.phi)),
+                        int(bot.bottom[1] - bot.breadth * cos(bot.phi))]
+        bot.intensity_last = bot.intensity
+
+        # Update multiranger attributes
+        distances = simulate_rangefinder(bot, obsts)
+        mr.x = bot.x
+        mr.y = bot.y
+        mr.phi = bot.phi
+        mr.ld = distances[0]
+        mr.fd = distances[1]
+        mr.rd = distances[2]
+        mr.bd = distances[3]
+        mr.lpoint = np.array([mr.x+mr.ld*cos(mr.phi - pi/2),
+                              mr.y+mr.ld*sin(mr.phi - pi/2)])
+        mr.fpoint = np.array([mr.x+mr.fd*cos(mr.phi),
+                              mr.y+mr.fd*sin(mr.phi)])
+        mr.rpoint = np.array([mr.x+mr.rd*cos(mr.phi + pi/2),
+                              mr.y+mr.rd*sin(mr.phi + pi/2)])
+        mr.bpoint = np.array([mr.x+mr.bd*cos(mr.phi + pi),
+                              mr.y+mr.bd*sin(mr.phi + pi)])
+
+        # Update obstacle attributes
+        # for i in range(num_obsts):
+        #     obsts[i].x += int(1.5 * sin(0.02*pg.time.get_ticks()))
+        #     obsts[i].y += int(1.5 * sin(0.02*pg.time.get_ticks()))
+
+        # FPS. Print if required
+        # clock.tick(300)     # To limit fps, controls speed of the animation
+        # fps = (frames*1000)/(pg.time.get_ticks() - ticks)  # calculate fps
+
+        # Update PyGame display
+        pg.display.flip()
+        # frames+=1
+
+
 class robot():
-    def __init__(self, init_pos, init_ang, size, intensity=init_intensity):
+    def __init__(self, init_pos, init_ang, size,
+                 intensity=init_intensity, intensity_last=0):
         '''
-        Arguments: [init_pos_x, init_pos_y], init_angle, [l, b], intensity
+        Args: [init_x, init_y], init_ang, [l, b], intensity, intensity_last
         '''
         self.x = init_pos[0]
         self.y = init_pos[1]
         self.pos = [self.x, self.y]
         self.phi = init_ang
         self.intensity = intensity
+        self.intensity_last = intensity_last
         self.length = size[0]
         self.breadth = size[1]
 
@@ -184,42 +249,47 @@ class robot():
         '''
         Run controller
         '''
-        v = vmax
-        omega = 0
-        return [v, omega]
+        pgloop(bot.start_forward())
 
-    def tumble(self):
+    def tumble(self, ang=1.5):
         '''
         Tumble controller
         '''
-        v = 0
-        phi_d = self.phi + (2*pi)*random.random()
-        # phi_d = self.phi + pi/2
-        omega = K_p_t*atan2(sin(phi_d - self.phi),
-                            cos(phi_d - self.phi))  # P controller for omega
-        if(abs(self.phi - phi_d < ang_tol)):
-            v = vmax
-        return [v, omega]
+        if(random.random() <= 0.5):
+            pgloop(bot.start_turn_right(), ang*random.random())
+        else:
+            pgloop(bot.start_turn_left(), ang*random.random())
+        pgloop(bot.start_forward())
 
-    def avoid_obst(self, obst_pos):
+    def avoid_obst(self, mrindex):
         '''
         Avoid obstacle controller
         '''
-        e = obst_pos - self.pos  # error in position
-        K = vmax * (1 - np.exp(- ao_scaling * np.linalg.norm(e)**2))\
-            / np.linalg.norm(e)  # Scaling for velocity
-        v = np.linalg.norm(K * e)  # Vel decreases as bot gets closer to obst
-        phi_d = -atan2(e[1], e[0])  # Desired heading
-        omega = K_p_ao*atan2(sin(phi_d - self.phi),
-                             cos(phi_d - self.phi))  # P controller for omega
-        return [v, omega]
+        if(mrindex == 0):  # Smallest dist sensed from left
+            pgloop(bot.start_right(), 0.1)
+            pgloop(bot.start_turn_right())
+            pgloop(bot.start_forward())
+        elif(mrindex == 1):  # Smallest dist sensed from front
+            pgloop(bot.start_back(), 0.1)
+            pgloop(bot.start_turn_right())
+            pgloop(bot.start_forward())
+        elif(mrindex == 2):  # Smallest dist sensed from right
+            pgloop(bot.start_left(), 0.1)
+            pgloop(bot.start_turn_left())
+            pgloop(bot.start_forward())
+        else:  # Smallest dist sensed from back
+            pgloop(bot.start_forward())
 
     ########################################
     # Crazyflie client methods
     ########################################
     # Unimplemented take_off(), land(), wait()
 
-    # Velocity commands
+    # By the nature of how PyGame works, position control
+    # commands had to be implemented as separate functions
+    # and not as methods of this class
+
+    # Velocity control commands
     ####################
     # Unimplemented:
     # start_up(), start_down()
@@ -314,7 +384,7 @@ class robot():
 class obstacle():
     def __init__(self, radius, pos):
         '''
-        Arguments: radius, [pos_x, pos_y]
+        Args: radius, [pos_x, pos_y]
         '''
         self.r = radius
         self.x = pos[0]
@@ -327,7 +397,7 @@ class obstacle():
 class multiranger():
     def __init__(self, robot, dists):
         '''
-        Arguments: robot object, [left_dist, front_dist, right_dist, back_dist]
+        Args: robot object, [left_dist, front_dist, right_dist, back_dist]
         '''
         self.x = robot.x
         self.y = robot.y
@@ -375,6 +445,52 @@ for i in range(num_obsts):
 for i in range(num_obsts):
     obsts.append(obstacle(radius[i], [obsts_x[i], obsts_y[i]]))
 
+robot_x = 100  # Initial position
+robot_y = 600  # Initial position
+robot_phi = 5  # Initial angle
+robot_l = 15  # Robot length
+robot_b = 6  # Robot width
+
+# Initialize objects
+bot = robot([robot_x, robot_y], robot_phi,
+            [robot_l, robot_b])
+distances = simulate_rangefinder(bot, obsts)
+mr = multiranger(bot, distances)
+
+
+def draw(robot, mr):
+    # Threshold radius
+    pg.draw.circle(screen, (100, 100, 100),
+                   (int(robot.x), int(robot.y)),
+                   dist_thresh, 0)
+    # Constant intensity circles
+    pg.draw.circle(screen, (250, 250, 250), src_pos, 20, 1)
+    pg.draw.circle(screen, (200, 200, 200), src_pos, 50, 1)
+    pg.draw.circle(screen, (150, 150, 150), src_pos, 100, 1)
+    pg.draw.circle(screen, (100, 100, 100), src_pos, 150, 1)
+    pg.draw.circle(screen, (60, 60, 60), src_pos, 200, 1)
+    pg.draw.circle(screen, (40, 40, 40), src_pos, 250, 1)
+    # Multiranger beams
+    pg.draw.line(screen, (250, 180, 0), [int(mr.x), int(mr.y)],
+                 [int(mr.lpoint[0]), int(mr.lpoint[1])], 2)  # Left
+    pg.draw.line(screen, (250, 180, 0), [int(mr.x), int(mr.y)],
+                 [int(mr.fpoint[0]), int(mr.fpoint[1])], 2)  # Front
+    pg.draw.line(screen, (250, 180, 0), [int(mr.x), int(mr.y)],
+                 [int(mr.rpoint[0]), int(mr.rpoint[1])], 2)  # Right
+    pg.draw.line(screen, (250, 180, 0), [int(mr.x), int(mr.y)],
+                 [int(mr.bpoint[0]), int(mr.bpoint[1])], 2)  # Back
+    # Robot
+    pg.draw.polygon(screen, (255, 0, 0),
+                    [robot.tip, robot.bottom_l, robot.bottom_r], 0)
+    # Robot center pt
+    pg.draw.circle(screen, (250, 180, 0), [int(robot.x), int(robot.y)], 1)
+    # Obstacles
+    for i in range(len(obsts)):
+        pg.draw.circle(screen, (0, 0, 255),
+                       (obsts[i].x, obsts[i].y), obsts[i].r, 0)
+    # Light source
+    pg.draw.circle(screen, (0, 255, 0), src_pos, 8, 0)
+
 
 def main():
     # PyGame inits
@@ -384,94 +500,38 @@ def main():
     # ticks = pg.time.get_ticks()
     # frames = 0
 
-    robot_x = 100  # Initial position
-    robot_y = 600  # Initial position
-    robot_phi = 5  # Initial angle
-    robot_l = 15  # Robot length
-    robot_b = 6  # Robot width
-    intensity_last = 0
-
-    # PyGame loop
+    # Commands
     while(1):
-        # To exit
-        event = pg.event.poll()
-        if(event.type == pglocs.QUIT or
-           (event.type == pglocs.KEYDOWN and event.key == pglocs.K_ESCAPE)):
-            break
-        # Pause if SPC is pressed
-        if(event.type == pglocs.KEYDOWN and event.key == pglocs.K_SPACE):
-            while(1):
-                event = pg.event.poll()
-                if(event.type == pglocs.KEYDOWN and
-                   event.key == pglocs.K_SPACE):
-                    break  # Resume if SPC pressed again
-                time.sleep(0.010)  # Wait for 10 ms
-        screen.fill((50, 55, 60))  # background
+        # Read light intensity
+        bot.intensity = simulate_light_sensor([bot.x, bot.y],
+                                              src_pos, light_std)
 
-        # Draw robot, sensor skirt, obstacles and light source
-        bot = robot([robot_x, robot_y], robot_phi,
-                    [robot_l, robot_b])
-        distances = simulate_rangefinder(bot, obsts)
-        mr = multiranger(bot, distances)
-        mr.show()
-        intensity = simulate_light_sensor([bot.x, bot.y], src_pos, sensor_dev)
-        pg.draw.circle(screen, (100, 100, 100),
-                       (int(bot.x), int(bot.y)),
-                       dist_thresh, 0)  # threshold radius
-        for i in range(len(obsts)):
-            obsts[i].show()
-        bot.show()
-        pg.draw.circle(screen, (0, 255, 0), src_pos, 8, 0)  # Draw light source
-
-        # Constant intensity circles
-        pg.draw.circle(screen, (250, 250, 250), src_pos, 20, 1)
-        pg.draw.circle(screen, (200, 200, 200), src_pos, 50, 1)
-        pg.draw.circle(screen, (150, 150, 150), src_pos, 100, 1)
-        pg.draw.circle(screen, (100, 100, 100), src_pos, 150, 1)
-        pg.draw.circle(screen, (60, 60, 60), src_pos, 200, 1)
-        pg.draw.circle(screen, (40, 40, 40), src_pos, 250, 1)
-
-        [v, dir_x, dir_y, omega] = bot.start_linear_motion(0, 0.3)
-        # # Run and tumble
-        # if(mr.ld > dist_thresh and mr.fd > dist_thresh and
-        #    mr.rd > dist_thresh and mr.bd > dist_thresh):  # No obst
-        #     if(intensity > intensity_last):
-        #         [v, omega] = bot.run()  # controller run()
-        #     else:
-        #         [v, omega] = bot.tumble()  # controller tumble()
-        # # Paranoid behavior - run away from obstacle
-        # else:
-        #     # Closest obstacle detected among the 4 directions
-        #     mrmin = min(mr.ld, mr.fd, mr.rd, mr.bd)
-        #     mrindex = [mr.ld, mr.fd, mr.rd, mr.bd].index(mrmin)
-        #     if(mrindex == 0):
-        #         obst_pos = mr.lpoint
-        #     elif(mrindex == 1):
-        #         obst_pos = mr.fpoint
-        #     elif(mrindex == 2):
-        #         obst_pos = mr.rpoint
-        #     else:
-        #         obst_pos = mr.bpoint
-        #     [v, omega] = bot.avoid_obst(obst_pos)
-
-        # # Update robot pose as per control input and intensity_last
-        robot_x += v*dir_x
-        robot_y += v*dir_y
-        robot_phi = constrain(robot_phi + omega)
-        # intensity_last = intensity
-
-        # Update position of obstacles
-        # for i in range(num_obsts):
-        #     obsts[i].x += int(1.5 * sin(0.02*pg.time.get_ticks()))
-        #     obsts[i].y += int(1.5 * sin(0.02*pg.time.get_ticks()))
-
-        # FPS. Print if required
-        # clock.tick(300)     # To limit fps, controls speed of the animation
-        # fps = (frames*1000)/(pg.time.get_ticks() - ticks)  # calculate fps
-
-        # Update PyGame display
-        pg.display.flip()
-        # frames+=1
+        if(bot.intensity < max_intensity_thresh):
+            # If no obsts in dist_thresh, run-and-tumble
+            if(mr.ld > dist_thresh and mr.fd > dist_thresh and
+               mr.rd > dist_thresh and mr.bd > dist_thresh):
+                # If intensity is increasing, run
+                if(bot.intensity > bot.intensity_last):
+                    bot.run()
+                # Else tumble to random direction
+                else:
+                    bot.tumble()
+            # Obst(s) detected within dist_thresh. Run away from closest obst
+            else:
+                # Closest dist sensed among the 4 directions
+                mrmin = min(mr.ld, mr.fd, mr.rd, mr.bd)
+                mrindex = [mr.ld, mr.fd, mr.rd, mr.bd].index(mrmin)
+                bot.avoid_obst(mrindex)
+        else:
+            # Congratulatory screen
+            time.sleep(3)
+            screen.fill((50, 55, 60))  # background
+            font = pg.font.SysFont("Hack", 72)
+            success_text = font.render("SUCCESS!!!", True, (0, 128, 0))
+            screen.blit(success_text,
+                        ((screen_width - success_text.get_width())//2,
+                         (screen_height - success_text.get_height())//2))
+            pg.display.flip()
 
 
 if(__name__ == '__main__'):
