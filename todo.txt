@@ -2,6 +2,7 @@
 
 #+Title: Run and tumble project todo
 #+TODO: TODO NISHANT KRISHNA JESSICA | DONE CANCELLED
+
 * Course requirements [2/3]
 ** DONE Pre proposal
 CLOSED: [2020-02-13 Thu 15:35] DEADLINE: <2020-02-12 Wed>
@@ -11,8 +12,8 @@ CLOSED: [2020-02-22 Sat 18:05] DEADLINE: <2020-02-24 Mon>
 ** TODO Poster presentation
 DEADLINE: <2020-03-11 Wed>
 
-* Project work [3/10]
-** TODO Simulation [0/2]
+* Project work [4/10]
+** TODO Simulation [4/7]
 The simulation in the current state is very crude as compared to real world conditions. We can add complexities one step at a time till we get a good enough performance. This will help us in designing the behaviors and behavior switching on the crazyflie.
 *** TODO Sensor noise for light sensor [0/5]
 - [ ] Store last n intensity values and use the average for comparison instead of just the last value
@@ -20,11 +21,21 @@ The simulation in the current state is very crude as compared to real world cond
 - [ ] We may need to ensure that we don't store values when we are tumbling because the position is the same and we would just be adding noise and no information about whether we are moving up the gradient will be stored
 - [ ] We may need to switch behaviors when the difference between current and last few average values is less than a threshold value in the place of the current system where our threshold is zero. This is because we will have sensor noise in the actual system
 - [ ] Toy around with the two values - the number of readings stored and the threshold - till we get the desired performance
-*** TODO More accurate rangefinding [0/4]
-- [ ] Right now, we are cheating in the simulation since we have access to range information from infinite number of directions (it works in the entire disk around the robot). We need to have range information in only 4 directions as that will be the case for the actual system. Need to make relevant changes for this in the simulation
-- [ ] In the current simulation, we are also "kinda" cheating in the sense that we are using the obstacle position information to change the behaviors. We need to add another layer which uses that information to simulate the rangefinder sensor data and then the robot has access to only that data to change its behaviors (without having direct access to obstacle positions)
+*** TODO More accurate rangefinding [2/5]
+- [X] Right now, we are cheating in the simulation since we have access to range information from infinite number of directions (it works in the entire disk around the robot). We need to have range information in only 4 directions as that will be the case for the actual system. Need to make relevant changes for this in the simulation
+- [X] In the current simulation, we are also "kinda" cheating in the sense that we are using the obstacle position information to change the behaviors. We need to add another layer which uses that information to simulate the rangefinder sensor data and then the robot has access to only that data to change its behaviors (without having direct access to obstacle positions)
 - [ ] Once we have this working, we will need to implement another behavior: obstacle check - yaw in-place for d degrees either every x seconds or after moving every x meters to look for obstacles in other directions since we only have 4 points
 - [ ] Toy around with the parameters - the threshold distance at which to change behavior to obstacle avoidance, the threshold distance or time after which to switch to obstacle check, and the degrees to yaw during obstacle check
+- [ ] Add sensor noise
+*** DONE Implement high level finite state machine
+CLOSED: [2020-03-04 Wed 20:22]
+*** DONE Implement run controller algorithm
+CLOSED: [2020-03-04 Wed 20:23]
+*** DONE Implement tumble controller algorithm
+CLOSED: [2020-03-04 Wed 20:23]
+*** DONE Implement obstacle avoidance controller algorithm
+CLOSED: [2020-03-04 Wed 20:23]
+*** TODO Implement obstacle check controller algorithm
 ** DONE Debug I2C communication for light sensor [2/2]
 CLOSED: [2020-02-22 Sat 09:45]
 Try only till the time we have the analog sensor. If it works before then, we can directly work with the sensor we have soldered and save up on the time on soldering a new sensor. If it doesn't, then move to the analog one.
@@ -38,10 +49,11 @@ CLOSED: [2020-02-22 Sat 09:45]
 - [X] Use rospy-crazyflie's logging system to get the sensor data to the ROS subsystem
 ** DONE Write sensor data publisher
 CLOSED: [2020-02-22 Sat 13:15]
-** TODO Implement high level controller node
-** TODO Implement run controller node
-** TODO Implement tumble controller node
-** TODO Implement obstacle avoidance controller node
-** TODO Implement obstacle check controller node
-** TODO Build testing environment
+** TODO Implement high level finite state machine
+** TODO Implement run controller algorithm
+** TODO Implement tumble controller algorithm
+** TODO Implement obstacle avoidance controller algorithm
+** TODO Implement obstacle check controller algorithm
+** DONE Build testing environment
+CLOSED: [2020-02-28 Fri 17:21]
 A room with a single light source
