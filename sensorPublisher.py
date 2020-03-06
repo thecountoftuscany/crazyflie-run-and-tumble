@@ -44,7 +44,7 @@ class bcfPublisher:
                                    10, callback=self.stateUpdate)
         self.client.add_log_config('light_rangeConfig',
                                    self.light_rangeLogvars,
-                                   10, callback=self.light_rangeUpdate)
+                                   500, callback=self.light_rangeUpdate)
 
         # Keep the node running until it is killed
         rospy.spin()
