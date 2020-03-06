@@ -66,7 +66,7 @@ if __name__ == '__main__':
     time.sleep(3)
     while 1:
         time.sleep(0.25)
-        print("[{},{},{}],l={},last={},[{},{},{},{}]".format(self.x,self.y,self.z,self.intensity,self.last_intensity,self.rangeLeft, self.rangeFront,self.rangeRight,self.rangeBack))
-        print(len(self.d_intensity))
+        print("[{},{},{}],l={},last={},[{},{},{},{}]".format(bcrazy.x,bcrazy.y,bcrazy.z,bcrazy.intensity,bcrazy.last_intensity,bcrazy.rangeLeft, bcrazy.rangeFront,bcrazy.rangeRight,bcrazy.rangeBack))
+        print(len(bcrazy.d_intensity))
   
 
