@@ -31,7 +31,13 @@ class bcfController:
 
         # Create deque for calculating average intensity over last num_samples
         self.d_intensity = deque(maxlen=num_samples)
+        
+        # Create publisher for current state
+        self.rospy.init_node('bcf_state_publisher')
 
+        # Publishers
+        self.action_publisher = rospy.Publisher('bcf_action', ActionPub, queue_size=10)
+        
         self.x = 0
         self.y = 0
         self.z = 0
@@ -41,6 +47,7 @@ class bcfController:
         self.rangeBack = 0
         self.intensity = 0
         self.last_intensity = 0
+        self.current_action = ActionPub()
 
         # Create subscribers
         rospy.Subscriber('bcf_intensity', LightData, callback=self.intensity_callback)
@@ -79,17 +86,21 @@ class bcfController:
         return None    
 
     def run(self):
-	if(self.intensity < 1000):
-		pass
-        	self.client.start_forward(forward_vel)
-	else:
-		pass
-		self.client.start_forward(forward_vel)
-        print('Running!')
-        rospy.sleep(1.)
-        return None
+        self.current_action.action = 1
+        self.action_publisher.publish(self.current_action)
+        if(self.intensity < 1000):
+            pass
+                self.client.start_forward(forward_vel)
+        else:
+            pass
+            self.client.start_forward(forward_vel)
+            print('Running!')
+            rospy.sleep(1.)
+            return None
 
     def tumble(self):
+        self.current_action.action = 2
+        self.action_publisher.publish(self.current_action)
         self.client.wait()
         c = random.random()
         print('Tumbling! c = ',c)
@@ -102,6 +113,8 @@ class bcfController:
         return None
 
     def avoid_obst(self):
+        self.current_action.action = 3
+        self.action_publisher.publish(self.current_action)
         dist_arr = np.array([self.rangeLeft, self.rangeFront, self.rangeRight, self.rangeBack])
         smallest_dist = np.argmin(dist_arr)
 
