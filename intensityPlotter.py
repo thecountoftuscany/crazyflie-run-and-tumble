@@ -3,7 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import animation
 from mpl_toolkits.mplot3d import Axes3D
-from rospy_crazyflie.msg import KalmanPositionEst
+from rospy_crazyflie.msg import *
 
 class livePlotter():
     def __init__(self):
@@ -15,6 +15,9 @@ class livePlotter():
         self.state = KalmanPositionEst()
         self.intensity = LightData()
         self.action = ActionPub()
+	self.x = 0
+	self.y = 0
+	self.z = 0
 
         # Initialize subscriber
         rospy.init_node('live_plotter')
@@ -27,21 +30,40 @@ class livePlotter():
         self.ax = self.fig.gca(projection='3d')
 
         # Animate
-        anim_object = animation.FuncAnimation(self.fig, self.animate, interval=25, save_count=200)
+        anim_object = animation.FuncAnimation(self.fig, self.animate, interval=125, save_count=200)
         plt.show()
         #anim_object.save('cf_animation.mp4', fps=10, extra_args=['-vcodec', 'libx264'])
 
         # Continue until node killed
         rospy.spin()
 
+    def state_callback(self, data):
+        self.x = data.stateX
+        self.y = data.stateY
+        self.z = data.stateZ
+        #print("state = {},{},{}".format(self.x, self.y, self.z))
+
+    def action_callback(self, data):
+        self.action = data.action
+        #print("action = {}".format(self.action))
+
     def intensity_callback(self, data):
-        #print("{},{},{}".format(data.stateX, data.stateY, data.stateZ))
-        asdf
-        self.pose = np.vstack(([self.pose,np.array([data.stateX,data.stateY,data.stateZ])]))
+        self.intensity = data.intensity
+        #print("intensity = {}".format(self.intensity))
+        self.plotArray = np.vstack(([self.plotArray, np.array([self.x, self.y, self.intensity])]))
 
     def animate(self, i):
         self.ax.clear()
-        self.ax.plot(self.pose[1:,0],self.pose[1:,1],self.pose[1:,2])
+	#self.ax.plot(self.plotArray[1:,0], self.plotArray[1:,1], self.plotArray[1:,2])
+        if(self.action == 1):
+            self.ax.plot(self.plotArray[1:,0], self.plotArray[1:,1], self.plotArray[1:,2], color=(0.0,1.0,0.0))
+            pass
+        elif(self.action == 2):
+            self.ax.plot(self.plotArray[1:,0], self.plotArray[1:,1], self.plotArray[1:,2], color=(0.0,0.0,1.0))
+            pass
+        elif(self.action == 3):
+            self.ax.plot(self.plotArray[1:,0], self.plotArray[1:,1], self.plotArray[1:,2], color=(1.0,0.0,0.0))
+            pass
 
 if __name__=='__main__':
     plotter=livePlotter()
