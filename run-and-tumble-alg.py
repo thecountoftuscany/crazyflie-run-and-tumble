@@ -15,7 +15,7 @@ takeoff_height = 0.3    # m
 forward_vel = 0.1       # m/s
 strafe_vel = 0.1        # m/s
 turn_deg = 20           # deg
-max_intensity = 500   	# lux
+max_intensity = 800   	# lux
 obst_dist_thresh = 500  # mm
 start_time = 5          # sec
 run_time = 1            # sec
@@ -78,11 +78,11 @@ class bcfController:
         return
 
     def start(self):
-        #self.client.take_off(takeoff_height)
-        #self.client.wait()
+        self.client.take_off(takeoff_height)
+        self.client.wait()
         rospy.sleep(start_time)
-        #self.client.start_forward(forward_vel)
-        #self.client.wait()
+        self.client.start_forward(forward_vel)
+        self.client.wait()
         rospy.sleep(run_time)
         print('Start routine complete!')
         return None
@@ -90,7 +90,7 @@ class bcfController:
     def run(self):
         self.current_action.action = 1
         self.action_publisher.publish(self.current_action)
-        #self.client.start_forward(forward_vel)
+        self.client.start_forward(forward_vel)
         print('Running!')
         rospy.sleep(run_time)
         return None
@@ -98,20 +98,20 @@ class bcfController:
     def tumble(self):
         self.current_action.action = 2
         self.action_publisher.publish(self.current_action)
-        #self.client.wait()
+        self.client.wait()
         c = random.random()
         print('Tumbling! c = ', c)
         if c <= 0.5:
             pass
             # turns CF in the range 0-180 deg
-            #self.client.turn_left(180*random.random())
-            #self.client.wait()
+            self.client.turn_left(180*random.random())
+            self.client.wait()
         else:
             pass
-            #self.client.turn_right(180*random.random())
-            #self.client.wait()
+            self.client.turn_right(180*random.random())
+            self.client.wait()
         rospy.sleep(tumble_time)
-        #self.client.start_forward(forward_vel)
+        self.client.start_forward(forward_vel)
         return None
 
     def avoid_obst(self):
@@ -123,43 +123,43 @@ class bcfController:
 
         if smallest_dist == 0:
             print('Obstacle to left, moving right')
-            #self.client.wait()
-            #self.client.start_right(strafe_vel)
+            self.client.wait()
+            self.client.start_right(strafe_vel)
             rospy.sleep(strafe_time)
-            #self.client.wait()
-            #self.client.turn_right(turn_deg)
-            #self.client.wait()
-            #self.client.start_forward(forward_vel)
+            self.client.wait()
+            self.client.turn_right(turn_deg)
+            self.client.wait()
+            self.client.start_forward(forward_vel)
         elif smallest_dist == 1:
             print('Obstacle to front, moving back')
-            #self.client.wait()
-            #self.client.start_back(strafe_vel)
+            self.client.wait()
+            self.client.start_back(strafe_vel)
             rospy.sleep(strafe_time)
-            #self.client.wait()
-            #self.client.turn_left(turn_deg)
-            #self.client.wait()
-            #self.client.start_forward(forward_vel)
+            self.client.wait()
+            self.client.turn_left(turn_deg)
+            self.client.wait()
+            self.client.start_forward(forward_vel)
         elif smallest_dist == 2:
             print('Obstacle to right, moving left')
-            #self.client.wait()
-            #self.client.start_left(strafe_vel)
+            self.client.wait()
+            self.client.start_left(strafe_vel)
             rospy.sleep(strafe_time)
-            #self.client.wait()
-            #self.client.turn_left(turn_deg)
-            #self.client.wait()
-            #self.client.start_forward(forward_vel)
+            self.client.wait()
+            self.client.turn_left(turn_deg)
+            self.client.wait()
+            self.client.start_forward(forward_vel)
         elif smallest_dist == 3:
             print('Obstacle to back, moving forward')
-            #self.client.wait()
-            #self.client.start_forward(forward_vel)
+            self.client.wait()
+            self.client.start_forward(forward_vel)
         rospy.sleep(ao_time)
         return None
 
     def stop(self):
-        #self.client.stop()
-        #self.client.wait()
-        #self.client.land()
-        #self.client.wait()
+        self.client.stop()
+        self.client.wait()
+        self.client.land()
+        self.client.wait()
         del self.client
         sys.exit(0)
         return None
