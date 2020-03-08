@@ -5,6 +5,7 @@ from rospy_crazyflie.srv import *
 from rospy_crazyflie.msg import *
 import sys
 
+
 class bcfPublisher:
     def __init__(self):
         # Init node
@@ -74,5 +75,6 @@ class bcfPublisher:
         self.intensity_publisher.publish(self.intensity)
         self.range_publisher.publish(self.dists)
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     bcf = bcfPublisher()
