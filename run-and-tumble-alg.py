@@ -14,11 +14,15 @@ num_samples = 10
 takeoff_height = 0.3    # m
 forward_vel = 0.1       # m/s
 strafe_vel = 0.1        # m/s
-strafe_time = 2	        # sec
 turn_deg = 20           # deg
 max_intensity = 500   	# lux
 obst_dist_thresh = 500  # mm
+start_time = 5          # sec
 run_time = 1            # sec
+tumble_time = 0.5       # sec
+strafe_time = 2	        # sec
+ao_time = 0.5           # sec
+
 
 class bcfController:
     def __init__(self):
@@ -31,13 +35,11 @@ class bcfController:
 
         # Create deque for calculating average intensity over last num_samples
         self.d_intensity = deque(maxlen=num_samples)
-        
-        # Create publisher for current state
-        self.rospy.init_node('bcf_state_publisher')
 
         # Publishers
-        self.action_publisher = rospy.Publisher('bcf_action', ActionPub, queue_size=10)
-        
+        self.action_publisher = rospy.Publisher('bcf_action',
+                                                ActionPub, queue_size=10)
+
         self.x = 0
         self.y = 0
         self.z = 0
@@ -53,13 +55,13 @@ class bcfController:
         rospy.Subscriber('bcf_intensity', LightData, callback=self.intensity_callback)
         rospy.Subscriber('bcf_state', KalmanPositionEst, callback=self.state_callback)
         rospy.Subscriber('bcf_range', RangeData, callback=self.range_callback)
-        
+
         # rospy.spin()
-    
+
     def intensity_callback(self, data):
         self.intensity = data.intensity
         self.d_intensity.append(self.intensity)
-	self.last_intensity = sum(self.d_intensity)/len(self.d_intensity)
+        self.last_intensity = sum(self.d_intensity)/len(self.d_intensity)
         return
 
     def state_callback(self, data):
@@ -74,105 +76,107 @@ class bcfController:
         self.rangeFront = data.front
         self.rangeBack = data.back
         return
-    
+
     def start(self):
-        self.client.take_off(takeoff_height)
-        self.client.wait()
-        rospy.sleep(6.)
-        self.client.start_forward(forward_vel)
-        self.client.wait()
-        rospy.sleep(1.)
+        #self.client.take_off(takeoff_height)
+        #self.client.wait()
+        rospy.sleep(start_time)
+        #self.client.start_forward(forward_vel)
+        #self.client.wait()
+        rospy.sleep(run_time)
         print('Start routine complete!')
-        return None    
+        return None
 
     def run(self):
         self.current_action.action = 1
         self.action_publisher.publish(self.current_action)
-        if(self.intensity < 1000):
-            pass
-                self.client.start_forward(forward_vel)
-        else:
-            pass
-            self.client.start_forward(forward_vel)
-            print('Running!')
-            rospy.sleep(1.)
-            return None
+        #self.client.start_forward(forward_vel)
+        print('Running!')
+        rospy.sleep(run_time)
+        return None
 
     def tumble(self):
         self.current_action.action = 2
         self.action_publisher.publish(self.current_action)
-        self.client.wait()
+        #self.client.wait()
         c = random.random()
-        print('Tumbling! c = ',c)
+        print('Tumbling! c = ', c)
         if c <= 0.5:
-            self.client.turn_left(180*random.random()) # turns CF in the range 0-180 deg
+            pass
+            # turns CF in the range 0-180 deg
+            #self.client.turn_left(180*random.random())
+            #self.client.wait()
         else:
-            self.client.turn_right(180*random.random())
-        rospy.sleep(0.5)
-	self.client.start_forward(forward_vel)
+            pass
+            #self.client.turn_right(180*random.random())
+            #self.client.wait()
+        rospy.sleep(tumble_time)
+        #self.client.start_forward(forward_vel)
         return None
 
     def avoid_obst(self):
         self.current_action.action = 3
         self.action_publisher.publish(self.current_action)
-        dist_arr = np.array([self.rangeLeft, self.rangeFront, self.rangeRight, self.rangeBack])
+        dist_arr = np.array([self.rangeLeft, self.rangeFront,
+                             self.rangeRight, self.rangeBack])
         smallest_dist = np.argmin(dist_arr)
 
         if smallest_dist == 0:
             print('Obstacle to left, moving right')
-            self.client.wait()          
-            self.client.start_right(strafe_vel)
+            #self.client.wait()
+            #self.client.start_right(strafe_vel)
             rospy.sleep(strafe_time)
-            self.client.wait()
-            self.client.turn_right(turn_deg)
-            self.client.wait()
-            self.client.start_forward(forward_vel)
+            #self.client.wait()
+            #self.client.turn_right(turn_deg)
+            #self.client.wait()
+            #self.client.start_forward(forward_vel)
         elif smallest_dist == 1:
             print('Obstacle to front, moving back')
-            self.client.wait()
-            self.client.start_back(strafe_vel)                        
+            #self.client.wait()
+            #self.client.start_back(strafe_vel)
             rospy.sleep(strafe_time)
-            self.client.wait()
-            self.client.turn_left(turn_deg)
-            self.client.wait()
-            self.client.start_forward(forward_vel)
+            #self.client.wait()
+            #self.client.turn_left(turn_deg)
+            #self.client.wait()
+            #self.client.start_forward(forward_vel)
         elif smallest_dist == 2:
-            print('Obstacle to right, moving left') 
-            self.client.wait()
-            self.client.start_left(strafe_vel)
+            print('Obstacle to right, moving left')
+            #self.client.wait()
+            #self.client.start_left(strafe_vel)
             rospy.sleep(strafe_time)
-            self.client.wait()
-            self.client.turn_left(turn_deg)
-            self.client.wait()
-            self.client.start_forward(forward_vel)
+            #self.client.wait()
+            #self.client.turn_left(turn_deg)
+            #self.client.wait()
+            #self.client.start_forward(forward_vel)
         elif smallest_dist == 3:
-            print('Obstacle to back, moving forward')   
-            self.client.wait()         
-            self.client.start_forward(forward_vel)        
-        rospy.sleep(0.5)
+            print('Obstacle to back, moving forward')
+            #self.client.wait()
+            #self.client.start_forward(forward_vel)
+        rospy.sleep(ao_time)
         return None
-    
+
     def stop(self):
-        self.client.stop() 
-        self.client.wait()       
-        self.client.land()
-        self.client.wait()
+        #self.client.stop()
+        #self.client.wait()
+        #self.client.land()
+        #self.client.wait()
         del self.client
         sys.exit(0)
         return None
 
+
 if __name__ == '__main__':
     bcrazy = bcfController()
-    
+
     # Takeoff and hold
     bcrazy.start()
-    
+
     # Start high level control loop
     while bcrazy.intensity < max_intensity:
-        if (bcrazy.rangeLeft  > obst_dist_thresh and
-            bcrazy.rangeRight > obst_dist_thresh and
-            bcrazy.rangeFront > obst_dist_thresh and
-            bcrazy.rangeBack  > obst_dist_thresh):
+        if (bcrazy.rangeLeft > obst_dist_thresh and
+           bcrazy.rangeRight > obst_dist_thresh and
+           bcrazy.rangeFront > obst_dist_thresh and
+           bcrazy.rangeBack > obst_dist_thresh):
             print(bcrazy.intensity, bcrazy.last_intensity)
             if bcrazy.intensity > bcrazy.last_intensity:
                 bcrazy.run()
@@ -183,12 +187,3 @@ if __name__ == '__main__':
 
     # end while loop
     bcrazy.stop()
-    
-
-
-    while 1:
-        time.sleep(0.25)
-        print("[{},{},{}],l={},last={},[{},{},{},{}]".format(bcrazy.x,bcrazy.y,bcrazy.z,bcrazy.intensity,bcrazy.last_intensity,bcrazy.rangeLeft, bcrazy.rangeFront,bcrazy.rangeRight,bcrazy.rangeBack))
-        print(len(bcrazy.d_intensity))
-  
-
