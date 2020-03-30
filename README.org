@@ -20,9 +20,9 @@ The crazyflie with all of the components:
 [[./resources/bcrazy.jpg]]
 
 The contents of the repository are described below:
-- ~.config~ contains the logging configurations so that sensor data from the crazyflie can be accessed using ~[[https://github.com/JGSuw/rospy_crazyflie][rospy_crazyflie]]~ and also using ~[[https://github.com/bitcraze/crazyflie-clients-python][cfclient]]~
+- ~.config~ contains the logging configurations so that sensor data from the crazyflie can be accessed using [[https://github.com/JGSuw/rospy_crazyflie][rospy_crazyflie]] and also using [[https://github.com/bitcraze/crazyflie-clients-python][cfclient]]
 - ~catkin_ws~ contains the three custom ROS message types created to publish light intensity, multiranger distances and action state of the crazyflie (1 for run, 2 for tumble, 3 for obstacle avoidance)
-- ~crazyflie-firmware~ contains only the additions we made to the original ~[[https://github.com/bitcraze/crazyflie-firmware][crazyflie-firmware]]~ - which is a deck driver for the BH1750 light sensor. If you are not using the continuous high resolution mode on the BH1750 sensor, please refer to the sensor datasheet and change the ~conv_factor~, ~CONT_HI_RES_MODE~ in ~i2cdevWriteByte()~ and delay time in ~vTaskDelayUntil()~ accordingly.
+- ~crazyflie-firmware~ contains only the additions we made to the original [[https://github.com/bitcraze/crazyflie-firmware][crazyflie-firmware]] - which is a deck driver for the BH1750 light sensor. If you are not using the continuous high resolution mode on the BH1750 sensor, please refer to the sensor datasheet and change the ~conv_factor~, ~CONT_HI_RES_MODE~ in ~i2cdevWriteByte()~ and delay time in ~vTaskDelayUntil()~ accordingly.
 - ~documents~ contains the project pre-proposal and final poster
 - ~resources~ contains the images used in this readme
 - ~scripts~ contains the following Python scripts:
@@ -42,13 +42,13 @@ The crazyflie was first controlled from the keyboard and flown in the arena in a
 As we can see, the intensity variation in both the x and the y axes varies roughly as inverse square distance (as expected from a non-extended, ideal light source). Also see the variation in intensity [[./resources/intensity_x.png][in the axis along the direction towards the light source]] and [[./resources/intensity_y.png][in the transverse axis]]. Hence a constant/r^2 variation was modeled in the simulation.
 
 ** Simulation
-We used ~PyGame~ to create the simulation environment to for rapid testing of the algorithm before deploying it on the actual drone. The code in ~[[./scripts/simulation.py][simulation.py]]~ is pretty self-explanatory to understand what is going on.
+We used ~PyGame~ to create the simulation environment to for rapid testing of the algorithm before deploying it on the actual drone. The code in [[./scripts/simulation.py][simulation.py]] is pretty self-explanatory to understand what is going on.
 
 ** Algorithm
 The algorithm is implemented as the following finite state machine:
 [[./resources/FSM.png]]
 
-The exact implementation details can be seen in ~[[./scripts/run-and-tumble-alg.py][run-and-tumble-alg.py]]~.
+The exact implementation details can be seen in [[./scripts/run-and-tumble-alg.py][run-and-tumble-alg.py]].
 
 * Further details
 Please refer to [[./documents/Project-Final_Poster.pdf][the poster for the project]] for more details. In case further information is required, please contact one of the authors listed below.
