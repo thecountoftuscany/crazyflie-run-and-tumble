@@ -50,6 +50,8 @@ The algorithm is implemented as the following finite state machine:
 
 The exact implementation details can be seen in [[./scripts/run-and-tumble-alg.py][run-and-tumble-alg.py]].
 
+*Note*: The last intensity is taken to be the average of last 10 recorded intensity values to get rid of sensor noise.
+
 * Further details
 Please refer to [[./documents/Project-Final_Poster.pdf][the poster for the project]] for more details. In case further information is required, please contact one of the authors listed below.
 
