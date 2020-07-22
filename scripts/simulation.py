@@ -6,6 +6,9 @@ import random
 import time
 from collections import deque
 
+seed = 0
+random.seed(seed)
+
 # Screen
 screen_width = 700
 screen_height = 700
@@ -16,6 +19,8 @@ screen = pg.display.set_mode([screen_width, screen_height],
 def_vel = 0.3  # Default velocity for crazyflie
 def_rate = 0.005  # Default angular velocity for crazyflie
 dist_thresh = 40  # Paranoid behavior theshold
+run_time = 0.010  # in seconds
+ao_time = 0.100  # in seconds
 
 # Light source
 src_pos = np.array([int(screen_width/2), int(screen_height/2)])  # Position
@@ -52,6 +57,13 @@ def simulate_light_sensor(robot_pos, src_pos, std_dev):
     src_y = src_pos[1]
     dist = sqrt((robot_x - src_x)**2 + (robot_y - src_y)**2)
     return intensity_scaling/(dist**2) + random.gauss(0, std_dev)
+
+
+def dist(pt1, pt2):
+    '''
+    Finds distance between two points
+    '''
+    return np.linalg.norm(pt1-pt2)
 
 
 def simulate_rangefinder(robot, obsts):
@@ -144,7 +156,7 @@ def simulate_rangefinder(robot, obsts):
     return dist
 
 
-def pgloop(inputs, t=0.010):
+def pgloop(inputs, t=run_time):
     '''
     PyGame loop
     '''
@@ -163,7 +175,8 @@ def pgloop(inputs, t=0.010):
                    event.key == pglocs.K_SPACE):
                     break  # Resume if SPC pressed again
                 time.sleep(0.010)  # Wait for 10 ms
-        screen.fill((50, 55, 60))  # background
+        #screen.fill((50, 55, 60))  # dark background
+        screen.fill((255, 255, 255))  # white background
 
         draw()
 
@@ -220,7 +233,7 @@ class robot():
         '''
         self.x = init_pos[0]
         self.y = init_pos[1]
-        self.pos = [self.x, self.y]
+        self.pos = np.array([self.x, self.y])
         self.phi = init_ang
         self.intensity = random.random()
         self.intensity_last = 0
@@ -241,8 +254,10 @@ class robot():
         Draw robot to the screen
         '''
         # Robot
-        pg.draw.polygon(screen, (255, 0, 0),
-                        [self.tip, self.bottom_l, self.bottom_r], 0)
+        # pg.draw.polygon(screen, (255, 0, 0),
+                        # [self.tip, self.bottom_l, self.bottom_r], 0)  # red
+        pg.draw.polygon(screen, (200, 0, 0),
+                        [self.tip, self.bottom_l, self.bottom_r], 0)  # soft red
         # Center pt
         pg.draw.circle(screen, (250, 180, 0), [int(self.x), int(self.y)], 1)
 
@@ -256,26 +271,28 @@ class robot():
         '''
         Tumble controller
         '''
+        tumble_time = ang*random.random()
         if(random.random() <= 0.5):
-            pgloop(bot.start_turn_right(), ang*random.random())
+            pgloop(bot.start_turn_right(), tumble_time)
         else:
-            pgloop(bot.start_turn_left(), ang*random.random())
+            pgloop(bot.start_turn_left(), tumble_time)
         pgloop(bot.start_forward())
+        return tumble_time
 
     def avoid_obst(self, mrindex):
         '''
         Avoid obstacle controller
         '''
         if(mrindex == 0):  # Smallest dist sensed from left
-            pgloop(bot.start_right(), 0.1)
+            pgloop(bot.start_right(), ao_time)
             pgloop(bot.start_turn_right())
             pgloop(bot.start_forward())
         elif(mrindex == 1):  # Smallest dist sensed from front
-            pgloop(bot.start_back(), 0.1)
+            pgloop(bot.start_back(), ao_time)
             pgloop(bot.start_turn_right())
             pgloop(bot.start_forward())
         elif(mrindex == 2):  # Smallest dist sensed from right
-            pgloop(bot.start_left(), 0.1)
+            pgloop(bot.start_left(), ao_time)
             pgloop(bot.start_turn_left())
             pgloop(bot.start_forward())
         else:  # Smallest dist sensed from back
@@ -388,7 +405,8 @@ class obstacle():
         self.y = pos[1]
 
     def show(self):
-        pg.draw.circle(screen, (0, 0, 255), (self.x, self.y), self.r, 0)
+        # pg.draw.circle(screen, (0, 0, 255), (self.x, self.y), self.r, 0)  # blue
+        pg.draw.circle(screen, (0, 0, 200), (self.x, self.y), self.r, 0)  # soft blue
 
 
 class multiranger():
@@ -454,22 +472,24 @@ bot = robot([robot_x, robot_y], robot_phi,
 distances = simulate_rangefinder(bot, obsts)
 mr = multiranger(bot, distances)
 
-
 def draw():
     '''
     Draw stuff to PyGame screen
     '''
     # Threshold radius
-    pg.draw.circle(screen, (100, 100, 100),
+    # pg.draw.circle(screen, (100, 100, 100),
+                   # (int(bot.x), int(bot.y)),
+                   # dist_thresh, 0)
+    pg.draw.circle(screen, (200, 200, 200),
                    (int(bot.x), int(bot.y)),
-                   dist_thresh, 0)
+                   dist_thresh, 0)  # softer grey for white background
     # Constant intensity circles
-    pg.draw.circle(screen, (250, 250, 250), src_pos, 20, 1)
-    pg.draw.circle(screen, (200, 200, 200), src_pos, 50, 1)
-    pg.draw.circle(screen, (150, 150, 150), src_pos, 100, 1)
-    pg.draw.circle(screen, (100, 100, 100), src_pos, 150, 1)
-    pg.draw.circle(screen, (60, 60, 60), src_pos, 200, 1)
-    pg.draw.circle(screen, (40, 40, 40), src_pos, 250, 1)
+    # pg.draw.circle(screen, (250, 250, 250), src_pos, 20, 1)
+    # pg.draw.circle(screen, (200, 200, 200), src_pos, 50, 1)
+    # pg.draw.circle(screen, (150, 150, 150), src_pos, 100, 1)
+    # pg.draw.circle(screen, (100, 100, 100), src_pos, 150, 1)
+    # pg.draw.circle(screen, (60, 60, 60), src_pos, 200, 1)
+    # pg.draw.circle(screen, (40, 40, 40), src_pos, 250, 1)
     # Multiranger beams
     mr.show()
     # Robot
@@ -478,7 +498,8 @@ def draw():
     for i in range(len(obsts)):
         obsts[i].show()
     # Light source
-    pg.draw.circle(screen, (0, 255, 0), src_pos, 8, 0)
+    # pg.draw.circle(screen, (0, 255, 0), src_pos, 8, 0)  # green
+    pg.draw.circle(screen, (0, 200, 0), src_pos, 8, 0)  # soft green
 
 
 def main():
@@ -492,6 +513,13 @@ def main():
     # ticks = pg.time.get_ticks()
     # frames = 0
 
+    # For plotting
+    t = 0
+    rollout_t = np.array([t])
+    rollout_pos = np.array([[robot_x, robot_y]])
+    rollout_dist = np.array([dist(bot.pos, src_pos)])
+    rollout_action = np.array([1])
+
     # Commands
     while(bot.intensity < max_intensity_thresh):
         # Read light intensity
@@ -504,16 +532,37 @@ def main():
            mr.rd > dist_thresh and mr.bd > dist_thresh):
             # If intensity is increasing, run
             if(bot.intensity > bot.intensity_last):
+                dt = run_time
                 bot.run()
+                action = 1
             # Else tumble to random direction
             else:
-                bot.tumble()
+                dt = bot.tumble()
+                action = 2
         # Obst(s) detected within dist_thresh. Run away from closest obst
         else:
+            dt = ao_time
             # Closest dist sensed among the 4 directions
             mrmin = min(mr.ld, mr.fd, mr.rd, mr.bd)
             mrindex = [mr.ld, mr.fd, mr.rd, mr.bd].index(mrmin)
             bot.avoid_obst(mrindex)
+            action = 3
+        # Update rollout_ variables and save to file for plotting
+        t += dt
+        rollout_t = np.append(rollout_t, t)
+        rollout_pos = np.vstack((rollout_pos, np.array([bot.x, bot.y])))
+        rollout_dist = np.append(rollout_dist, dist(src_pos, np.array([bot.x, bot.y])))
+        rollout_action = np.append(rollout_action, action)
+    # To save to file for plotting
+    obstacles = np.zeros((1, 3))  # vstack of [x, y, r]
+    for obst in obsts:
+        obstacles = np.vstack((obstacles, np.array([obst.x, obst.y, obst.r])))
+    obstacles = obstacles[1:]
+    np.savez('rollout_s_' + str(seed) + '_' +
+             str(time.strftime('%Y%m%d_%H-%M-%S')) +
+             '.npz', rollout_t=rollout_t, rollout_pos=rollout_pos,
+             rollout_dist=rollout_dist, rollout_action=rollout_action,
+             obstacles=obstacles)
 
     # If intensity >= max_intensity_thresh, stop
     pgloop(bot.stop())
