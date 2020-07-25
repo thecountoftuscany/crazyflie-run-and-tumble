@@ -460,8 +460,8 @@ for i in range(num_obsts):
 for i in range(num_obsts):
     obsts.append(obstacle(radius[i], [obsts_x[i], obsts_y[i]]))
 
-robot_x = 100  # Initial position
-robot_y = 600  # Initial position
+robot_x = 600  # Initial position
+robot_y = 100  # Initial position
 robot_phi = 5  # Initial angle
 robot_l = 15  # Robot length
 robot_b = 6  # Robot width
