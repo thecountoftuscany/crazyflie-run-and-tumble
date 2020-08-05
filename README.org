@@ -37,7 +37,7 @@ The contents of the repository are described below:
 
 ** Running the algorithm in simulation
 - Install =numpy= and =pygame= using =pip= or =conda= or any other preferred method.
-- Run =python ./scripts/simulation.py= to run a simulation with randomly placed obstacles. Change the =seed= from 0 to some other value (or remove the =random.seed()= call) call at the beginning of the script to change the obstacle placement within the environment.
+- Run =python ./scripts/simulation.py= to run a simulation with randomly placed obstacles. Change the =seed= from 0 to some other value (or remove the =random.seed()= call) at the beginning of the script to change the obstacle placement within the environment.
 On running, the script also generates a =rollout_s_seed_date_time.npz= file in =../data/= that contains the trajectory information which can later be used with =./scripts/plotting.py= to generate trajectory plots or distance-vs-time plots as in the paper.
 - (Optional) Edit the =fnames= list in =./scripts/plotting.py= to contain the =.npz= files whose trajectories have to be plotted. The files to reproduce the results in the submitted paper have already been included. Then run =python plotting.py= (after changing directories). This first shows the distance-vs-time plot for the simluated trajectories in the paper, then a plot of the corresponding trajectories in the simulated environment and then the plot of the actual drone trajectory as shown in the paper. Edit the =bag_no= variable to get plots for each of the three recorded experiment trials.
 
