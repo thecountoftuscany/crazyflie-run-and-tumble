@@ -33,6 +33,35 @@ The contents of the repository are described below:
   - ~sensorPublisher.py~ - publishes crazyflie position, current detected light intensity and distances to obstacles in four directions (left, front, right, front) of the crazyflie. Needs ~default.launch~ from ~rospy_crazyflie~ to be running and the crazyflie dongle plugged in. (Also, add the crazyflie address to ~rospy_crazyflie/config/config.yaml~)
   - ~simulation.py~ - runs the algorithm in a [[https://pygame.org][PyGame]] simulation
 
+* Instructions to run scripts
+
+** Running the algorithm in simulation
+- Install =numpy= and =pygame= using =pip= or =conda= or any other preferred method.
+- Run =python ./scripts/simulation.py= to run a simulation with randomly placed obstacles. Change the =seed= from 0 to some other value (or remove the =random.seed()= call) call at the beginning of the script to change the obstacle placement within the environment.
+On running, the script also generates a =rollout_s_seed_date_time.npz= file in the same directory that contains the trajectory information which can later be used with =./scripts/plotting.py= to generate trajectory plots or distance-vs-time plots.
+- (Optional) Edit the =fnames= list in =./scripts/plotting.py= to contain the =.npz= files whose trajectories have to be plotted. The files to reproduce the results in the submitted paper have already been included. Then run =python plotting.py= (after changing directories).
+
+** Running the algorithm on the drone
+*** Installations and setup required
+- Follow the instructions [[https://github.com/bitcraze/crazyflie-firmware][here]] to get the default crazyflie firmware.
+- Patch the default firmware with the contents from =./crazyflie-firmware= and run =make=
+- Flash the modified firmware on to the drone by running the =make cload= recipe with the bluetooth USB dongle plugged in
+- Install a ROS distribution for your operating system (instructions [[http://wiki.ros.org/ROS/Installation][here]])
+- Install =rospy_crazyflie= (instructions [[https://github.com/JGSuw/rospy_crazyflie][here]]) and =crazyflie-lib-python= (instructions [[https://github.com/bitcraze/crazyflie-lib-python][here]])
+- Add the contents of =./catkin_ws/src/rospy_crazyflie= directory to =/path_to_your_catkin_ws/src/rospy_crazyflie= and run =catkin_make=
+- (Optional) Install =crazyflie-clients-python= (instructions [[https://github.com/bitcraze/crazyflie-clients-python][here]]) to get =cfclient=
+- Place the contents of the =./.config= directory in your =$HOME/.config= or =$XDG_CONFIG_HOME=
+
+*** Running the algorithm
+- Turn on the drone with the flowdeck and multiranger deck added. Also make sure that the BH1750 light sensor is connected to the power, ground and I2C pins on the drone
+- Add your crazyflie's =link_uri= (can be found using =cfclient=, for example) to =$HOME/.config/cfclient/config.json=
+- Run =roslaunch rospy_crazyflie default.launch= to connect to the crazyflie. Make sure the terminal output shows that the drone has connected
+- Change directory using =cd ./scripts=
+- Run =python sensorPublisher.py= to have sensor values published to rostopics
+- (Optional) Run =python keyinputPublisher.py= and then =python cfController.py= to move the crazyflie using WASD keyboard input for testing. The 'z' key triggers landing
+- (Optional) run =python intensityPlotter.py= to live plot the drone's position and intensity on a 3D plot
+- If the =cfController.py= script was used to manually control the drone, make sure that the =cfController= process has been killed before moving on. Run =python run-and-tumble-alg.py= to execute the algorithm
+
 * Method
 
 ** Light source characterisation
