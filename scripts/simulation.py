@@ -558,7 +558,7 @@ def main():
     for obst in obsts:
         obstacles = np.vstack((obstacles, np.array([obst.x, obst.y, obst.r])))
     obstacles = obstacles[1:]
-    np.savez('rollout_s_' + str(seed) + '_' +
+    np.savez('../data/rollout_s_' + str(seed) + '_' +
              str(time.strftime('%Y%m%d_%H-%M-%S')) +
              '.npz', rollout_t=rollout_t, rollout_pos=rollout_pos,
              rollout_dist=rollout_dist, rollout_action=rollout_action,
