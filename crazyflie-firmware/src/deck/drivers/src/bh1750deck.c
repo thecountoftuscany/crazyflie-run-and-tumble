@@ -38,7 +38,7 @@ static void bh1750Init()
   xTaskCreate(bh1750Task, BH1750_TASK_NAME, BH1750_TASK_STACKSIZE, NULL, BH1750_TASK_PRI, NULL);
 
   isInit = true;
-  DEBUG_PRINT("Initialization complete!\n");
+  DEBUG_PRINT("BH1750 initialization complete!\n");
 }
 
 // Deck driver test function
@@ -50,9 +50,6 @@ static bool bh1750Test()
 
 void bh1750Task(void* arg)
 {
-  uint8_t dataHB;
-  uint8_t dataLB;
-  bool ack;
   uint8_t intensitydata[2];
 
   systemWaitStart();
@@ -71,7 +68,7 @@ void bh1750Task(void* arg)
     // Combine the two bytes to get data
     intensity = intensitydata[0] << 8 | intensitydata[1];
     intensity = intensity/conv_factor;
-    //DEBUG_PRINT("Light reading is: %f\n", data);
+    // DEBUG_PRINT("Light reading is: %f\n", intensity);
   }
 }
 

@@ -3,12 +3,12 @@
 #DEBUG=1
 
 # bh1750 deck
-CFLAGS += -DDECK_FORCE=bh1750Deck
-DEBUG=1
-
-# tsl2591 deck
-#CFLAGS += -DDECK_FORCE=tsl2591Deck
+#CFLAGS += -DDECK_FORCE=bh1750Deck
 #DEBUG=1
+
+# hdc2010 deck
+CFLAGS += -DDECK_FORCE=hdc2010Deck
+DEBUG=1
 
 ## Copy this file to config.mk and modify to get you personal build configuration
 
