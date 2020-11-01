@@ -1,10 +1,62 @@
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+from matplotlib.ticker import MultipleLocator
 import rosbag
 from mpl_toolkits import mplot3d
 import os
 import csv
+
+# Optional (but use consistent styles for all plots)
+# plt.style.use('seaborn')
+
+# According to the IEEE format
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "serif",
+    "font.serif": ["Times"],
+    "font.size": 10,
+    "legend.fontsize": 8,  # verify
+    "xtick.labelsize": 8,  # verify
+    "ytick.labelsize": 8,  # verify
+    "axes.labelsize": 10})
+
+
+def set_size(width, fraction=1, subplots=(1, 1)):
+    """Set figure dimensions to avoid scaling in LaTeX.
+    Parameters
+    ----------
+    width: float or string
+            Document width in points, or string of predined document type
+    fraction: float, optional
+            Fraction of the width which you wish the figure to occupy
+    subplots: array-like, optional
+            The number of rows and columns of subplots.
+    Returns
+    -------
+    fig_dim: tuple
+            Dimensions of figure in inches
+    """
+    if width == 'ieee-textwidth':
+        width_pt = 516
+    elif width == 'ieee-columnwidth':
+        width_pt = 252
+    else:
+        width_pt = width
+    # Width of figure (in pts)
+    fig_width_pt = width_pt * fraction
+    # Convert from pt to inches
+    inches_per_pt = 1 / 72.27
+    # Golden ratio to set aesthetic figure height
+    # https://disq.us/p/2940ij3
+    golden_ratio = (5**.5 - 1) / 2
+    # Figure width in inches
+    fig_width_in = fig_width_pt * inches_per_pt
+    # Figure height in inches
+    fig_height_in = fig_width_in * golden_ratio * (subplots[0] / subplots[1])
+    return (fig_width_in, fig_height_in)
+
 
 # First 5 are from (100,600)
 # Next 5 are from (100, 100)
@@ -38,6 +90,7 @@ starts = np.array([[100, 600],
                    [600, 600],
                    [600, 100]])
 
+
 t_arr = []
 action_arr = []
 pos_arr = []
@@ -52,23 +105,37 @@ for fname in fnames:
     dist_arr.append(loadfile['rollout_dist'])
     obstacles_arr.append(loadfile['obstacles'])
 
+width = "third-textwidth"  # either "third-textwidth" or "columnwidth"
+
 # Plot 1 - dist vs time from simulation data
-plt.figure(1)
+if width == "third-textwidth":
+    fig1 = plt.figure(1, figsize=set_size(516/3, fraction=0.9))
+else:
+    fig1 = plt.figure(1, figsize=(set_size('ieee-columnwidth')))
 for i in range(len(t_arr)):
     plt.plot(t_arr[i], dist_arr[i], label='Trajectory ' + str(i+1))
 plt.grid()
 #plt.legend()
 # plt.title('Distance with time in simulation')
-plt.xlabel('time (sec)')
-plt.ylabel('distance to source (pixels)')
+plt.xlabel('Time (s)')
+plt.ylabel('Distance to source\n(pixels)')
+plt.subplots_adjust(left=0.28, bottom=0.28, right=0.95, top=0.95)
 # plt.show()
-plt.savefig('../../../img/sim_dist_t.pdf', bbox_inches="tight")
-plt.savefig('../../../img/sim_dist_t.png', bbox_inches="tight")
-print("Saved ../../../img/sim_dist_t")
+if width == "third-textwidth":
+    plt.savefig('../../../img/sim_dist_t-resized.pdf')
+    plt.savefig('../../../img/sim_dist_t-resized.png')
+    print("Saved ../../../img/sim_dist_t-resized")
+else:
+    plt.savefig('../../../img/sim_dist_t.pdf', bbox_inches="tight")
+    plt.savefig('../../../img/sim_dist_t.png', bbox_inches="tight")
+    print("Saved ../../../img/sim_dist_t")
 
 # Plot 2 - trajectories from simulation data
-fig = plt.figure(2)
-ax = fig.add_subplot(1, 1, 1)
+if width == "third-textwidth":
+    fig2 = plt.figure(2, figsize=set_size(516/3, fraction=0.8))
+else:
+    fig2 = plt.figure(2, figsize=(set_size('ieee-columnwidth')))
+ax = fig2.add_subplot(1, 1, 1)
 # Draw trajectories
 for i in range(len(t_arr)):
     plt.plot(pos_arr[i][:, 0], pos_arr[i][:, 1],
@@ -90,11 +157,20 @@ plt.xlabel('x position (pixels)')
 plt.ylabel('y position (pixels)')
 #plt.legend()
 # plt.show()
-plt.savefig('../../../img/sim_trajs.pdf', bbox_inches="tight")
-plt.savefig('../../../img/sim_trajs.png', bbox_inches="tight")
-print("Saved ../../../img/sim_trajs")
+if width == "third-textwidth":
+    plt.savefig('../../../img/sim_trajs-resized.pdf', bbox_inches="tight")
+    plt.savefig('../../../img/sim_trajs-resized.png', bbox_inches="tight")
+    print("Saved ../../../img/sim_trajs-resized")
+else:
+    plt.savefig('../../../img/sim_trajs.pdf', bbox_inches="tight")
+    plt.savefig('../../../img/sim_trajs.png', bbox_inches="tight")
+    print("Saved ../../../img/sim_trajs")
 
 # Plot 3 - trajectories from flight data
+# fig3 = plt.figure(figsize=(set_size('ieee-textwidth', subplots=(2,2))))
+avg_time = 0  # average seeking time for all successful trials
+fig3 = plt.figure(figsize=(set_size('ieee-textwidth', subplots=(1,3))))
+gs = fig3.add_gridspec(2, 2)
 for bag_no in range(3):
     path = '../../data/light/'
     names = ["2020-03-07-17-18-28.bag", "2020-03-07-20-14-41.bag", "2020-03-07-20-24-16.bag"]
@@ -149,54 +225,94 @@ for bag_no in range(3):
             i += 1
     action_adj[np.where(action_adj == 0)] = 1  
 
-    stateX_adj = stateX_adj[:endtrim[bag_no - 1]]
-    stateY_adj = stateY_adj[:endtrim[bag_no - 1]]
-    intensity = intensity[:endtrim[bag_no - 1]]
-    action_adj = action_adj[:endtrim[bag_no - 1]]
-    fig, ax = plt.subplots()
+    # Plotting every other point since the actions (marker types) are indistinguishable otherwise
+    stateX_adj = stateX_adj[:endtrim[bag_no - 1]:2]
+    stateY_adj = stateY_adj[:endtrim[bag_no - 1]:2]
+    intensity = intensity[:endtrim[bag_no - 1]:2]
+    action_adj = action_adj[:endtrim[bag_no - 1]:2]
+
+    avg_time += stateX_t_adj[endtrim[bag_no-1]] - stateX_t_adj[0]
 
     vmax = 1200
     vmin = 0
     cmap = 'nipy_spectral'
-    markersize = 30
+    markersize = 10
 
-
+    obst_width, obst_height = 0.45, 0.25  # m
+    if bag_no+1 == 1:
+        ax = plt.subplot(1, 3, 1)
+        # Add source
+        ax.scatter(2.2, -0.9, marker='d', color='k', s=20, label="Light source", zorder=9)
+        # Add obstacles
+        ax.add_patch(plt.Rectangle((0.25,0.2), obst_width, obst_height, -20, antialiased=True, color="red", fill=True, label="Obstacles", visible=True, zorder=1))
+        ax.add_patch(plt.Rectangle((0.5,-1.5), obst_width, obst_height, 10, antialiased=True, color="red", fill=True, zorder=1))
+        ax.add_patch(plt.Rectangle((1.99,-1.5), 1.45, 0.05, 70, antialiased=True, color="red", fill=True, zorder=1))  # Wall
+    elif bag_no+1 == 2:
+        ax = plt.subplot(1, 3, 2)
+        # Add source
+        ax.scatter(-0.45, -1.25, marker='d', color='k', s=20, label="Light source", zorder=9)
+        # Add obstacles
+        ax.add_patch(plt.Rectangle((0.98,-1.8), obst_width, obst_height, 85, antialiased=True, color="red", fill=True, label="Obstacles", visible=True, zorder=1))
+        ax.add_patch(plt.Rectangle((1.5,-0.2), obst_width, obst_height, 140, antialiased=True, color="red", fill=True, zorder=1))
+        ax.add_patch(plt.Rectangle((0.01,-2.15), 2.0, 0.05, 115, antialiased=True, color="red", fill=True, zorder=1))  # Wall
+    elif bag_no+1 == 3:
+        ax = plt.subplot(1, 3, 3)
+        # Add source
+        ax.scatter(2.5, -1.42, marker='d', color='k', s=20, label="Light source", zorder=9)
+        # Add obstacles
+        ax.add_patch(plt.Rectangle((1.2,-1.95), obst_width, obst_height, 155, antialiased=True, color="red", fill=True, label="Obstacles", visible=True, zorder=1))
+        ax.add_patch(plt.Rectangle((2.1,-0.5), obst_width, obst_height, 95, antialiased=True, color="red", fill=True, zorder=1))
+        ax.add_patch(plt.Rectangle((1.65,-2.3), 2.0, 0.05, 45, antialiased=True, color="red", fill=True, zorder=1))  # Wall
     scatter1 = ax.scatter(stateX_adj[action_adj==1], stateY_adj[action_adj==1],
                            marker='.', c=intensity[action_adj==1], label='Run', vmin=vmin, vmax=vmax,
-                           cmap=cmap, s=markersize)
+                           cmap=cmap, s=markersize, zorder=2)
     scatter2 = ax.scatter(stateX_adj[action_adj==2], stateY_adj[action_adj==2], 
                            marker='*', c=intensity[action_adj==2], label='Tumble', vmin=vmin, vmax=vmax, 
-                           cmap=cmap, s=markersize)
+                           cmap=cmap, s=markersize, zorder=2)
     scatter3 = ax.scatter(stateX_adj[action_adj==3], stateY_adj[action_adj==3], 
-                           marker='+', c=intensity[action_adj==3], label='Avoid', vmin=vmin, vmax=vmax, 
-                           cmap=cmap, s=markersize)
+                           marker='x', c=intensity[action_adj==3], label='Avoid\nObstacle', vmin=vmin, vmax=vmax, 
+                           cmap=cmap, s=markersize, zorder=2)
     scatterstart = ax.scatter(stateX_adj[0], stateY_adj[0], 
-                           marker='x', c='red', label='Start', vmin=vmin, vmax=vmax, 
-                           cmap=cmap, s=100)
+                           marker='1', c='red', label='Start', vmin=vmin, vmax=vmax, 
+                           cmap=cmap, s=50, zorder=2)
     scatterfinish = ax.scatter(stateX_adj[-1], stateY_adj[-1], 
                            marker='v', c='green', label='Finish', vmin=vmin, vmax=vmax, 
-                           cmap=cmap, s=100)
+                           cmap=cmap, s=50, zorder=1)
+    ax.plot(stateX_adj, stateY_adj, color='darkgray', linewidth=1, zorder=1)  # trajectory
 
-    ax.set_xlabel('x position (m)')
-    ax.set_ylabel('y position (m)')
-    if bag_no == 1:
-        ax.legend(loc='lower right')
-    elif bag_no == 2:
-        ax.legend(loc='upper right')
-    else:
-        ax.legend(loc='upper center')
+    ax.xaxis.set_major_locator(MultipleLocator(1))
+    ax.yaxis.set_major_locator(MultipleLocator(1))
+
+    ax.xaxis.set_minor_locator(MultipleLocator(0.2))
+    ax.yaxis.set_minor_locator(MultipleLocator(0.2))
+
+    ax.grid(b=True, which='major', color='#CCCCCC')
+    ax.grid(b=True, which='minor', color='#CCCCCC', linestyle='--', linewidth=0.5)
+    ax.set_axisbelow(True)
+
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
     ax.axis('equal')
-    cb = plt.colorbar(scatter1)
-    cb.set_label('Intensity (lux)')
-
     # ax.set_title('Drone trajectory while seeking light source (trial ' + str(bag_no+1) + ')')
-    plt.savefig('../../../img/2d-plot-bag' + str(bag_no+1) +'.pdf', bbox_inches="tight")
-    plt.savefig('../../../img/2d-plot-bag' + str(bag_no+1) + '.png', bbox_inches="tight")
-    print('Saved ../../../img/2d-plot-bag' + str(bag_no+1))
+    # ax.set_xlabel('x position (m)')
+    # ax.set_ylabel('y position (m)')
+avg_time /= len(names)
+print('The average seek time for successful light seeking trials was {} sec'.format(avg_time))
+
+# fig3.subplots_adjust(right=0.82, hspace=0.3, wspace=0.3)
+plt.legend(bbox_to_anchor=(-2.22, -0.1), ncol=7, loc="upper left")
+fig3.subplots_adjust(left=0.05, wspace=0.1)
+cbar_ax = fig3.add_axes([0.048, -0.35, 0.85, 0.1])
+cb = plt.colorbar(scatter1, cax=cbar_ax, orientation="horizontal")
+cb.set_label('Intensity (lux)')
+
+plt.savefig('../../../img/algo-light.pdf', bbox_inches="tight")
+plt.savefig('../../../img/algo-light.png', bbox_inches="tight")
+print('Saved ../../../img/algo-light')
 
 # Plot 4 - plot for light seeking for fire as a light source
 # fig6 = plt.figure(6, figsize=(16, 9), constrained_layout=True)
-fig6 = plt.figure(6, figsize=(16, 4))
+fig6 = plt.figure(6, figsize=(set_size('ieee-textwidth', subplots=(1, 2))))
 datadir = '../../data/light/'
 trials = os.listdir(datadir)[3:]  # Only take directories
 plotted_trials = [1, 2]  # Plot all trials
@@ -271,25 +387,27 @@ for trial in trials:
         intensity = intensity[startTrim:len(intensity)-endTrim]
         action_adj = action_adj[startTrim:len(action_adj)-endTrim]
 
-        cmap = matplotlib.cm.ScalarMappable(norm=plt.Normalize(vmin=min(intensity), vmax=max(intensity)), cmap='nipy_spectral')
-        cmap.set_array([])
-        ax.scatter(x_adj[action_adj==1], y_adj[action_adj==1], marker='.', c=intensity[action_adj==1], vmin=min(intensity), vmax=max(intensity), s=30, label='Run', zorder=2)
-        ax.scatter(x_adj[action_adj==2], y_adj[action_adj==2], marker='*', c=intensity[action_adj==2], vmin=min(intensity), vmax=max(intensity), s=30, label='Tumble', zorder=2)
-        ax.scatter(x_adj[action_adj==3], y_adj[action_adj==3], marker='+', c=intensity[action_adj==3], vmin=min(intensity), vmax=max(intensity), s=30, label='Avoid', zorder=2)
+        ax.scatter(x_adj[action_adj==1], y_adj[action_adj==1], marker='.', c=intensity[action_adj==1], vmin=0, vmax=300, s=20, label='Run', zorder=2)
+        ax.scatter(x_adj[action_adj==2], y_adj[action_adj==2], marker='*', c=intensity[action_adj==2], vmin=0, vmax=300, s=20, label='Tumble', zorder=2)
+        ax.scatter(x_adj[action_adj==3], y_adj[action_adj==3], marker='+', c=intensity[action_adj==3], vmin=0, vmax=300, s=20, label='Avoid\nObstacle', zorder=2)
         ax.plot(x_adj, y_adj, color='darkgray', linewidth=1, zorder=1)  # trajectory
         # ax.set_title('Light seeking for fire (Trial ' + str(trial_no) + ')')
-        ax.set_xlabel('x position (m)')
-        ax.set_ylabel('y position (m)')
+        plt.xlabel('x position (m)')
+        plt.ylabel('y position (m)')
+        if trial_no == 1:
+            plt.legend()
         ax.axis('equal')
-        plt.subplots_adjust(hspace=0.5)
         # scatter2 = ax.scatter(2, 0, marker='d', color='k')  # show source
         ax.scatter(x_adj[0], y_adj[0], marker='x', c='red', s=100, label='Start')  # start location
         ax.scatter(x_adj[-1], y_adj[-1], marker='v', c='green', s=100, label='Finish')  # end location
-        cb = plt.colorbar(cmap)
-        cb.set_label(r'Light intensity (lux)')
         # plt.legend([Line2D([0], [0], color='k', lw=0, marker='d')], ['Fire pit'])
-        plt.legend()
 plt.figure(6)
+fig6.subplots_adjust(right=0.82)
+cbar_ax = fig6.add_axes([0.85, 0.15, 0.02, 0.7])
+cmap = matplotlib.cm.ScalarMappable(norm=plt.Normalize(vmin=0, vmax=300), cmap='nipy_spectral')
+cmap.set_array([])
+cb = plt.colorbar(cmap, cax=cbar_ax)
+cb.set_label(r'Light intensity (lux)')
 plt.savefig('../../../img/algo-light-fire.pdf', bbox_inches="tight")
 plt.savefig('../../../img/algo-light-fire.png', bbox_inches="tight")
 print('Saved ../../../img/algo-light-fire')
