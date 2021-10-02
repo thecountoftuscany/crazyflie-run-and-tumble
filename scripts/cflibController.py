@@ -1,5 +1,8 @@
-import argparse
+# This part gets rid of the 'Hello from PyGame...' message
+from os import environ
+environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
+import argparse
 from pygame.locals import *
 import cflib.crtp
 from cflib.crazyflie import Crazyflie
@@ -10,30 +13,36 @@ import logging
 import time
 import sys
 import os
+import numpy as np
 
 
+## Some default URIs. Delegated this to the --uri argument with a default
 # uri = 'radio://0/69/2M/E7E7E7E7E7'
-uri = 'radio://0/13/2M/E7E7E7E7E7'
-is_FlowDeck_attached = True
-# Only output errors from the logging framework
-logging.basicConfig(level=logging.ERROR)
+# uri = 'radio://0/13/2M/E7E7E7E7E7'
 
-# Global variables for logging, storing
-# position_estimate = [0, 0, 0]
-
-# num_samples = 10
 takeoff_height = 0.3    # m
 forward_vel = 0.1       # m/s
 turn_rate = 360.0 / 10.0 # rot/s
-# strafe_vel = 0.1        # m/s
-# turn_deg = 20           # deg
-# max_intensity = 800   	# lux
-# obst_dist_thresh = 500  # mm
-# start_time = 5          # sec
-# run_time = 1            # sec
-# tumble_time = 0.5       # sec
-# strafe_time = 2	        # sec
-# ao_time = 0.5           # sec
+
+## Whether to use blitting in the live plot
+    # When also controlling the crazyflie, blitting causes faster ploting,
+    # but removes dynamically changing axes limits for example.
+# Only applies if both controlling and plotting. If only plotting position
+# by manually moving the crazyflie, non-blitted plots are also as reponsive.
+# Hence keep this defaulted to False
+BLIT = False  # set to True if need more responsive plotting with fixed axes limits
+             # set to False if need dynamic axes limits at the cost of slow plotting
+## Default axes limits if BLIT. Change these if needed
+xlims = [-1, 1]
+ylims = [-1, 1]
+zlims = [0, takeoff_height+0.2]
+
+is_FlowDeck_attached = True
+## Only output errors from the logging framework
+logging.basicConfig(level=logging.ERROR)
+
+## Global variables for logging, storing
+traj_x, traj_y, traj_z = [0], [0], [0]
 
 
 #######################################
@@ -66,7 +75,13 @@ def post_takeoff(mc):
 def log_pos_callback(timestamp, data, logconf):
     # if not args.manual_control:
         # print("x={}, y={}, z={}".format(data['stateEstimate.x'], data['stateEstimate.y'], data['stateEstimate.z']))
-    pos_file_handler.write("{},{},{},{}\n".format(timestamp, data['stateEstimate.x'], data['stateEstimate.y'], data['stateEstimate.z']))
+    if args.write_to_file:
+        pos_file_handler.write("{},{},{},{}\n".format(timestamp, data['stateEstimate.x'], data['stateEstimate.y'], data['stateEstimate.z']))
+    if args.live_plot:
+        global traj_x, traj_y, traj_z
+        traj_x.append(data['stateEstimate.x'])
+        traj_y.append(data['stateEstimate.y'])
+        traj_z.append(data['stateEstimate.z'])
     # global position_estimate
     # position_estimate[0] = data['stateEstimate.x']
     # position_estimate[1] = data['stateEstimate.y']
@@ -76,7 +91,8 @@ def log_pos_callback(timestamp, data, logconf):
 def log_temp_callback(timestamp, data, logconf):
     if not args.manual_control:
         print("temp={}".format(data['HDC2010.temp']))
-    temp_file_handler.write("{},{}\n".format(timestamp, data['HDC2010.temp']))
+    if args.write_to_file:
+        temp_file_handler.write("{},{}\n".format(timestamp, data['HDC2010.temp']))
     # global temp
     # temp = data['HDC2010.temp']
 
@@ -85,7 +101,8 @@ def log_range_callback(timestamp, data, logconf):
     # if not args.manual_control:
         # print("rangeLeft={}, rangeFront={}, rangeRight={}, rangeBack={}".format(data['range.left'], data['range.front'], data['range.right'], data['range.back']))
     print(data)
-    range_file_handler.write("{},{},{},{},{}\n".format(timestamp, data['range.left'], data['range.front'], data['range.right'], data['range.back']))
+    if args.write_to_file:
+        range_file_handler.write("{},{},{},{},{}\n".format(timestamp, data['range.left'], data['range.front'], data['range.right'], data['range.back']))
     # global rangeLeft, rangeFront, rangeRight, rangeBack
     # rangeLeft, rangeFront, rangeRight, rangeBack = data['range.left'], data['range.front'], data['range.right'], data['range.back']
 #######################################
@@ -101,62 +118,105 @@ def pginit(mc):
     pygame.display.set_caption("Crazyflie control")
     screen.fill((50, 55, 60))  # background
     titlefont = pygame.font.SysFont('hack', 20)
-    text = titlefont.render('Keyboard input logger for controlling crazyflie', True, (255, 255, 255)); screen.blit(text, (8,10))
+    text = titlefont.render('Crazyflie controller', True, (255, 255, 255)); screen.blit(text, (8,10))
     descfont = pygame.font.SysFont('hack', 18)
     text = descfont.render('Keys: w,s,a,d> move;   q,e> turn;   f> stop;   z>land', True, (255, 255, 255)); screen.blit(text, (5, int(win_height/2 - 10)))
     #text = descfont.render('Press Esc to quit.', True, (255, 255, 255)); screen.blit(text, (5,win_height/2 + 10))
     pygame.display.flip()
     # PyGame loop
     while(1):
-        # To exit
-        event = pygame.event.poll()
-        if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
-            break
-        elif event.type == KEYDOWN and event.key == K_w:
-            mc.stop()
-            mc.start_forward(velocity=forward_vel)
-        elif event.type == KEYDOWN and event.key == K_s:
-            mc.stop()
-            mc.start_back(velocity=forward_vel)
-        elif event.type == KEYDOWN and event.key == K_a:
-            mc.stop()
-            mc.start_left(velocity=forward_vel)
-        elif event.type == KEYDOWN and event.key == K_d:
-            mc.stop()
-            mc.start_right(velocity=forward_vel)
-        elif event.type == KEYDOWN and event.key == K_q:
-            mc.stop()
-            mc.start_turn_left(rate=turn_rate)
-        elif event.type == KEYDOWN and event.key == K_e:
-            mc.stop()
-            mc.start_turn_right(rate=turn_rate)
-        elif event.type == KEYDOWN and event.key == K_f:
-            mc.stop()
-        elif event.type == KEYDOWN and event.key == K_z:
+        try:
+            # To exit
+            event = pygame.event.poll()
+            if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
+                break
+            elif event.type == KEYDOWN and event.key == K_r:
+                mc.stop()
+                mc.start_linear_motion(1, 1, 0)
+            elif event.type == KEYDOWN and event.key == K_w:
+                mc.stop()
+                mc.start_forward(velocity=forward_vel)
+            elif event.type == KEYDOWN and event.key == K_s:
+                mc.stop()
+                mc.start_back(velocity=forward_vel)
+            elif event.type == KEYDOWN and event.key == K_a:
+                mc.stop()
+                mc.start_left(velocity=forward_vel)
+            elif event.type == KEYDOWN and event.key == K_d:
+                mc.stop()
+                mc.start_right(velocity=forward_vel)
+            elif event.type == KEYDOWN and event.key == K_q:
+                mc.stop()
+                mc.start_turn_left(rate=turn_rate)
+            elif event.type == KEYDOWN and event.key == K_e:
+                mc.stop()
+                mc.start_turn_right(rate=turn_rate)
+            elif event.type == KEYDOWN and event.key == K_f:
+                mc.stop()
+            elif event.type == KEYDOWN and event.key == K_z:
+                mc.stop()
+                mc.land()
+                break
+        except KeyboardInterrupt:
             mc.stop()
             mc.land()
             break
 #######################################
 
 
+#######################################
+# Live plot
+def live_plot(i, fig, ax, line):
+    line.set_data(np.array(traj_x), np.array(traj_y))
+    line.set_3d_properties(np.array(traj_z))
+    if not BLIT:
+        if max(traj_x) < 1 and min(traj_x) > -1:
+            ax.set_xlim(-1, 1)
+        else:
+            ax.set_xlim(min(traj_x), max(traj_x))
+        if max(traj_y) < 1 and min(traj_y) > -1:
+            ax.set_ylim(-1, 1)
+        else:
+            ax.set_ylim(min(traj_y), max(traj_y))
+        if max(traj_z) < takeoff_height+0.2:
+            ax.set_zlim(0, takeoff_height+0.2)
+        else:
+            ax.set_zlim(0, max(traj_z))
+    return line,
+
+
+def manual_control(scf):
+    if is_FlowDeck_attached:
+        start(scf)  # Take off and start
+#######################################
+
+
 if __name__=='__main__':
-    parser = argparse.ArgumentParser(description='Script for controlling the crazyflie and logging sensor data')
+    parser = argparse.ArgumentParser(description='Script for controlling the crazyflie, logging sensor data and live plotting position')
     parser.add_argument('-p', '--log_pos', action='store_true', default=False, help='Log position')
     parser.add_argument('-t', '--log_temp', action='store_true', default=False, help='Log temperature')
     parser.add_argument('-r', '--log_range', action='store_true', default=False, help='Log range')
-    parser.add_argument('-c', '--manual_control', action='store_true', default=False, help='Logging only, no flight')
+    parser.add_argument('-c', '--manual_control', action='store_true', default=False, help='Manually control flying when passed; logging only and no flight if not passed')
+    parser.add_argument('-l', '--live_plot', action='store_true', default=False, help='Live plot the 3D position')
+    parser.add_argument('-w', '--write_to_file', action='store_true', default=False, help='Write logging variables to file')
+    parser.add_argument('-u', '--uri', type=str, default='radio://0/80/2M/E7E7E7E7E7', help='URI of the crazyflie to connect to')
     args = parser.parse_args()
+
+    if args.live_plot and not args.log_pos:
+        print('Position logging (-p or --log_pos) compulsary if using live plotting (-l or --live_plot). Check the docstring with -h for more details. Exiting.')
+        sys.exit()
 
     cflib.crtp.init_drivers(enable_debug_driver=False)
 
-    with SyncCrazyflie(uri, cf=Crazyflie(rw_cache=os.path.expanduser("~") + "/.cache")) as scf:
+    with SyncCrazyflie(args.uri, cf=Crazyflie(rw_cache=os.path.expanduser("~") + "/.cache")) as scf:
 
         if args.log_pos:
             # Logging position
             # Overwrite logfile contents
-            pos_file_handler = open("../data/pos.csv", "w")
-            pos_file_handler.close()
-            pos_file_handler = open("../data/pos.csv", "a")
+            if args.write_to_file:
+                pos_file_handler = open("../data/pos.csv", "w")
+                pos_file_handler.close()
+                pos_file_handler = open("../data/pos.csv", "a")
             logconf_pos = LogConfig(name='Position', period_in_ms=10)
             logconf_pos.add_variable('stateEstimate.x', 'float')
             logconf_pos.add_variable('stateEstimate.y', 'float')
@@ -167,9 +227,10 @@ if __name__=='__main__':
         if args.log_temp:
             # Logging temperature
             # Overwrite logfile contents
-            temp_file_handler = open("../data/temp.csv", "w")
-            temp_file_handler.close()
-            temp_file_handler = open("../data/temp.csv", "a")
+            if args.write_to_file:
+                temp_file_handler = open("../data/temp.csv", "w")
+                temp_file_handler.close()
+                temp_file_handler = open("../data/temp.csv", "a")
             logconf_temp = LogConfig(name='Temperature', period_in_ms=200)
             logconf_temp.add_variable('HDC2010.temp', 'float')
             scf.cf.log.add_config(logconf_temp)
@@ -178,9 +239,10 @@ if __name__=='__main__':
         if args.log_range:
             # Logging range
             # Overwrite logfile contents
-            range_file_handler = open("../data/range.csv", "w")
-            range_file_handler.close()
-            range_file_handler = open("../data/range.csv", "a")
+            if args.write_to_file:
+                range_file_handler = open("../data/range.csv", "w")
+                range_file_handler.close()
+                range_file_handler = open("../data/range.csv", "a")
             logconf_range = LogConfig(name='Range', period_in_ms=10)
             logconf_range.add_variable('range.left', 'uint16_t')
             logconf_range.add_variable('range.front', 'uint16_t')
@@ -193,34 +255,57 @@ if __name__=='__main__':
         if args.manual_control:
             scf.cf.param.add_update_callback(group="deck", name="bcFlow2",
                     cb=FlowDeckCheck)
-            # time.sleep(1)
 
         # Start logging
-        if args.log_pos:
+        if not args.live_plot and args.log_pos:
             logconf_pos.start()
         if args.log_temp:
             logconf_temp.start()
         if args.log_range:
             logconf_range.start()
 
-        if not args.manual_control:
+        if args.manual_control and not args.live_plot:
+            manual_control(scf)
+
+        if args.live_plot:
+            import _thread
+            from matplotlib import pyplot as plt
+            from matplotlib import animation
+            from mpl_toolkits.mplot3d import Axes3D
+
+            fig = plt.figure()
+            # ax = fig.gca(projection='3d')
+            ax = Axes3D(fig)
+            line, = ax.plot([], [], [])
+            if BLIT:
+                ax.set_xlim(xlims)
+                ax.set_ylim(ylims)
+                ax.set_zlim(zlims)
+            anim_object = animation.FuncAnimation(fig, live_plot, interval=50, blit=BLIT, fargs=(fig, ax, line,))
+            if args.manual_control:
+                _thread.start_new_thread(manual_control, (scf,))
+            if args.log_pos:
+                time.sleep(5)
+                logconf_pos.start()
+            plt.show()
+
+        if not args.manual_control and not args.live_plot:
             while(1):
                 try:
                     time.sleep(0.001)
                 except KeyboardInterrupt:
                     break
-        else:
-            if is_FlowDeck_attached:
-                # Take off and start
-                start(scf)
                         
         # Stop logging and end
         if args.log_pos:
             logconf_pos.stop()
-            pos_file_handler.close()
+            if args.write_to_file:
+                pos_file_handler.close()
         if args.log_temp:
             logconf_temp.stop()
-            temp_file_handler.close()
+            if args.write_to_file:
+                temp_file_handler.close()
         if args.log_range:
             logconf_range.stop()
-            range_file_handler.close()
+            if args.write_to_file:
+                range_file_handler.close()
