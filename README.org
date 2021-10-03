@@ -8,18 +8,25 @@ This repository contains the source code for a biology-inspired "run and tumble"
 ** [[./crazyflie-firmware/src/deck/drivers/src][Deck drivers]]
   - [[./crazyflie-firmware/src/deck/drivers/src/bh1750deck.c][BH1750]] light sensor (if you are not using the continuous high resolution mode on the BH1750 sensor, please refer to the sensor datasheet and change the =conv_factor=, =CONT_HI_RES_MODE= in =i2cdevWriteByte()= and delay time in =vTaskDelayUntil()= accordingly)
   - [[./crazyflie-firmware/src/deck/drivers/src/hdc2010deck.c][HDC2010]] temperature sensor
-  - [[./crazyflie-firmware/src/deck/drivers/src/nrfI2Cdeck.c][nRF52840]] dongle configured as an TWI device to measure bluetooth RSSI (note: this is possible using the on-board nRF chip too, but this method was used to quickly filter out bluetooth advertising packets from a particular MAC address by flashing the nRF dongle)
+  - [[./crazyflie-firmware/src/deck/drivers/src/nrfI2Cdeck.c][nRF52840]] dongle configured as an TWI device to measure bluetooth RSSI (*note*: this is possible using the on-board nRF chip too, but this method was used to quickly filter out bluetooth advertising packets from a particular MAC address by flashing the nRF dongle)
 ** A simulation environment for designing and testing the algorithm
 See [[./scripts/simulation.py][scripts/simulation.py]].
-./resources/simulation.webm.mov
+
+https://user-images.githubusercontent.com/14308382/135767027-af7cb36c-4d9a-480d-a9c5-4e3e0c6c232d.mov
+
 Might also be of interest: [[https://github.com/thecountoftuscany/unicycle-navigation][unicycle-navigation]], a repository that simulates go-to-goal (with known robot and goal positions) and obstacle avoidance behaviours in a finite state machine. That repository is more educational in purpose, but this simulation builds upon that one and adds simulated sensors, etc
 ** Light source seeking
 See [[./scripts/run-and-tumble-alg_light.py][scripts/run-and-tumble-alg_light.py]].
-./resources/light.webm.mov
+
+https://user-images.githubusercontent.com/14308382/135767338-6554afb8-b1ab-46d6-83b2-ec6a89107e88.mov
+
 ** Temperature source seeking
 See [[./scripts/run-and-tumble-alg_temp.py][scripts/run-and-tumble-alg_temp.py]].
-./resources/fire.webm.mov
-./resources/fire_thermal-cam.webm.mov
+
+https://user-images.githubusercontent.com/14308382/135767356-2353b9a0-04e4-4f12-8626-ac466eadc21b.mov
+
+https://user-images.githubusercontent.com/14308382/135767396-848630aa-a9d7-439e-b01a-12c716a38bdc.mov
+
 ** Keyboard-based crazyflie control, live plotting and logging
 See [[./scripts/cflibController.py][scripts/cflibController.py]]. This script can be invoked to manually control the crazyflie. Also contains functionality to live plot drone position estimate, log various measurements (eg. position, temperature, light intensity, multiranger ranges) to a csv file. Please use the =-h= flag for usage
 * Using this repository
@@ -63,7 +70,7 @@ DEBUG=1
 - [[https://github.com/bitcraze/crazyflie-firmware][crazyflie-firmware]] (just clone the repository)
 * Method
 ** Source characterization
-#+html: <p align="center"><img src="resources/src-characterisation.png" alt="Source signal characterization" width="500" /></p>
+#+html: <p align="center"><img src="resources/src-characterization.png" alt="Source signal characterization" width="500" /></p>
 (left) Light intensity distribution of an indoor light source using drone's position estimate. [top] with 2D position [bottom] along a straight line path towards the source,
 (middle) Temperature distribution for a fire using ground truth distance [top], and drone position estimate [bottom],
 (right) Bluetooth source packet detection rate distribution with ground truth distance
@@ -103,5 +110,5 @@ In case more details are needed, please contact one of the authors listed below
 * Acknowledgements
 Thanks to [[https://faculty.washington.edu/minster/][professor Sawyer Fuller]] and [[https://www.biology.washington.edu/people/profile/melanie-anderson][Melanie Anderson]] for access to hardware, examples of software and advice.
 
-_Note_:
+*Note*:
 This project started as a course project for the course [[https://faculty.washington.edu/minster/bio_inspired_robotics/][biology-inspired robotics]] taken by [[https://faculty.washington.edu/minster/][Prof. Sawyer B. Fuller]] at the University of Washington during Winter 2020. The original goal was light source seeking ([[https://www.youtube.com/watch?v=fgn8WjtvQ8k][video here]]). [[https://www.bitcraze.io/2020/07/intro-to-autonomous-robotics-with-the-crazyflie/][This blog post]] on the Bitcraze blog provides a good introduction. However the information contained in that blog post (and previous versions of this README) is outdated considering the current contents of this repository because the project has been in continued development after the course completion and it has increased in scope and some implementation details have been changed. The original project poster, proposal etc can be accessed from [[https://github.com/thecountoftuscany/crazyflie-run-and-tumble/tree/ca5551c61cfac40ec27befd05dfa0bb7c93e0499/documents][this commit]]. The initial approach was based on using the ROS ecosystem and the [[https://github.com/JGSuw/rospy_crazyflie][rospy_crazyflie]] library (a wrapper around [[https://github.com/bitcraze/crazyflie-lib-python][cflib]]) used in the [[https://depts.washington.edu/airlab/files/anderson_2019.pdf][smellicopter]] paper. We currently use directly use cflib to be Python3 compliant. The ros-based scripts and other deprecated files can be accessed from [[https://github.com/thecountoftuscany/crazyflie-run-and-tumble/tree/77aa4daa39d9fa7ff97b7fb6dfe7d1799c04ed83][this commit]]. The current version also does not use a virtual machine.
