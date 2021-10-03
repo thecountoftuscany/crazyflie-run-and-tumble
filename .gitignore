@@ -1,2 +1,16 @@
 .mypy_cache
-./data/*.csv
+
+.config/
+catkin_ws/
+crazyflie-firmware/Makefile
+crazyflie-firmware/src/hal/
+crazyflie-firmware/tools/
+crazyflie2-nrf-firmware/
+data/temp/cf/trial1/
+data/temp/controller/trial2/
+data/temp/manual/trial1/
+resources/fire.webm.mov
+resources/fire_thermal-cam_compressed.webm.mov
+resources/light-algo_compressed.webm.mov
+resources/simulation.webm.mov
+scripts/ros-based/
