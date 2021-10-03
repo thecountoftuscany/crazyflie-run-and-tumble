@@ -1,4 +1,9 @@
+# This part gets rid of the 'Hello from PyGame...' message
+from os import environ
+environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
+
 import numpy as np
+import argparse
 import pygame as pg
 import pygame.locals as pglocs
 from math import sin, cos, tan, atan2, sqrt, pi
@@ -6,8 +11,24 @@ import random
 import time
 from collections import deque
 
-seed = 0
-random.seed(seed)
+parser = argparse.ArgumentParser(description='Script for simulating run-and-tumble source seeking + obstacle avoidance algorithm. Press space to pause')
+parser.add_argument('-v', '--velocity', type=float, default=0.3, help='Linear velocity of the simulated robot (pixels per pygame loop)')
+parser.add_argument('-a', '--angular_v', type=float, default=0.005, help='Angular velocity of the simulated robot (radians per pygame loop)')
+parser.add_argument('-d', '--ao_threshold', type=int, default=40, help='Threshold distance to trigger obstacle avoidance (in pixels)')
+parser.add_argument('-rt', '--run_time', type=float, default=0.010, help='Amount of time to run before checking state again (in sec)')
+parser.add_argument('-aot', '--ao_time', type=float, default=0.100, help='Amount of time to move away from obstacle before checking state again (in sec)')
+parser.add_argument('-std', '--sensor_std', type=float, default=0, help='Standard deviation for sensor uncertainity')
+parser.add_argument('-is', '--intensity_scaling', type=float, default=1e5, help='Scaling for inverse square law')
+parser.add_argument('-sig_t', '--src_dec_thresh', type=float, default=1e4, help='The value of signal potential at which source is declared as reached')
+parser.add_argument('-o', '--num_obsts', type=int, default=5, help='The number of obstacles to place')
+parser.add_argument('-ominr', '--min_r', type=int, default=20, help='The minimum radius of obstacles (in pixels)')
+parser.add_argument('-omaxr', '--max_r', type=int, default=60, help='The maximum radius of obstacles (in pixels)')
+parser.add_argument('-l', '--light', action='store_true', default=False, help='Enable light background. Useful for publication. Default is dark for screens')
+parser.add_argument('-rs', '--random_seed', type=int, help='Execute with a given seed for random (to reproduce and inspect the behaviour with the same configuration)')
+args = parser.parse_args()
+
+if args.random_seed is not None:
+    random.seed(args.random_seed)
 
 # Screen
 screen_width = 700
@@ -15,24 +36,8 @@ screen_height = 700
 screen = pg.display.set_mode([screen_width, screen_height],
                              pglocs.DOUBLEBUF)
 
-# Parameters for robot
-def_vel = 0.3  # Default velocity for crazyflie
-def_rate = 0.005  # Default angular velocity for crazyflie
-dist_thresh = 40  # Paranoid behavior theshold
-run_time = 0.010  # in seconds
-ao_time = 0.100  # in seconds
-
-# Light source
+# Signal source at the center
 src_pos = np.array([int(screen_width/2), int(screen_height/2)])  # Position
-light_std = 0  # Standard deviation for sensor uncertainity
-intensity_scaling = 1e5  # Scaling for inverse square law
-max_intensity_thresh = 1e4  # Light source declaration at this value
-
-# Circular obstacles
-num_obsts = 5
-obsts_min_radius = 20
-obsts_max_radius = 60
-
 
 def constrain(angle):
     '''
@@ -45,18 +50,18 @@ def constrain(angle):
     return angle
 
 
-def simulate_light_sensor(robot_pos, src_pos, std_dev):
+def simulate_field_sensor(robot_pos, src_pos, std_dev):
     '''
-    Simulates light sensor.
+    Simulates a field sensor. The field could be light, temperature or whatever source is being seeked
     Inputs - [robot.x, robot.y], [src.x, src.y], std_deviation
-    Returns - Light intensity (inverse square to distance, with noise)
+    Returns - Field intensity (inverse square to distance, with noise)
     '''
     robot_x = robot_pos[0]
     robot_y = robot_pos[1]
     src_x = src_pos[0]
     src_y = src_pos[1]
     dist = sqrt((robot_x - src_x)**2 + (robot_y - src_y)**2)
-    return intensity_scaling/(dist**2) + random.gauss(0, std_dev)
+    return args.intensity_scaling/(dist**2) + random.gauss(0, std_dev)
 
 
 def dist(pt1, pt2):
@@ -156,7 +161,7 @@ def simulate_rangefinder(robot, obsts):
     return dist
 
 
-def pgloop(inputs, t=run_time):
+def pgloop(inputs, t=args.run_time):
     '''
     PyGame loop
     '''
@@ -171,12 +176,15 @@ def pgloop(inputs, t=run_time):
         if(event.type == pglocs.KEYDOWN and event.key == pglocs.K_SPACE):
             while(1):
                 event = pg.event.poll()
+                # Resume if SPC pressed again
                 if(event.type == pglocs.KEYDOWN and
-                   event.key == pglocs.K_SPACE):
-                    break  # Resume if SPC pressed again
+                     event.key == pglocs.K_SPACE):
+                    break  
                 time.sleep(0.010)  # Wait for 10 ms
-        #screen.fill((50, 55, 60))  # dark background
-        screen.fill((255, 255, 255))  # white background
+        if args.light:
+            screen.fill((255, 255, 255))  # white background
+        else:
+            screen.fill((50, 55, 60))  # dark background
 
         draw()
 
@@ -213,7 +221,7 @@ def pgloop(inputs, t=run_time):
                               mr.y+mr.bd*sin(mr.phi + pi)])
 
         # Update obstacle attributes
-        # for i in range(num_obsts):
+        # for i in range(args.num_obsts):
         #     obsts[i].x += int(1.5 * sin(0.02*pg.time.get_ticks()))
         #     obsts[i].y += int(1.5 * sin(0.02*pg.time.get_ticks()))
 
@@ -284,15 +292,15 @@ class robot():
         Avoid obstacle controller
         '''
         if(mrindex == 0):  # Smallest dist sensed from left
-            pgloop(bot.start_right(), ao_time)
+            pgloop(bot.start_right(), args.ao_time)
             pgloop(bot.start_turn_right())
             pgloop(bot.start_forward())
         elif(mrindex == 1):  # Smallest dist sensed from front
-            pgloop(bot.start_back(), ao_time)
+            pgloop(bot.start_back(), args.ao_time)
             pgloop(bot.start_turn_right())
             pgloop(bot.start_forward())
         elif(mrindex == 2):  # Smallest dist sensed from right
-            pgloop(bot.start_left(), ao_time)
+            pgloop(bot.start_left(), args.ao_time)
             pgloop(bot.start_turn_left())
             pgloop(bot.start_forward())
         else:  # Smallest dist sensed from back
@@ -309,7 +317,7 @@ class robot():
     # start_up(), start_down()
     # start_circle_left(), start_circle_right()
 
-    def start_left(self, velocity=def_vel):
+    def start_left(self, velocity=args.velocity):
         '''
         Start moving left
         '''
@@ -319,7 +327,7 @@ class robot():
         omega = 0
         return [velocity, dir_x, dir_y, omega]
 
-    def start_right(self, velocity=def_vel):
+    def start_right(self, velocity=args.velocity):
         '''
         Start moving right
         '''
@@ -329,7 +337,7 @@ class robot():
         omega = 0
         return [velocity, dir_x, dir_y, omega]
 
-    def start_forward(self, velocity=def_vel):
+    def start_forward(self, velocity=args.velocity):
         '''
 
         Start moving forward
@@ -340,7 +348,7 @@ class robot():
         omega = 0
         return [velocity, dir_x, dir_y, omega]
 
-    def start_back(self, velocity=def_vel):
+    def start_back(self, velocity=args.velocity):
         '''
 
         Start moving backward
@@ -361,7 +369,7 @@ class robot():
         omega = 0
         return [velocity, dir_x, dir_y, omega]
 
-    def start_turn_left(self, rate=def_rate):
+    def start_turn_left(self, rate=args.angular_v):
         '''
         Start turning left
         '''
@@ -371,7 +379,7 @@ class robot():
         omega = -rate
         return [velocity, dir_x, dir_y, omega]
 
-    def start_turn_right(self, rate=def_rate):
+    def start_turn_right(self, rate=args.angular_v):
         '''
         Start turning right
         '''
@@ -453,16 +461,17 @@ obsts = []
 radius = []
 obsts_x = []
 obsts_y = []
-for i in range(num_obsts):
-    radius.append(random.randint(obsts_min_radius, obsts_max_radius))
+for i in range(args.num_obsts):
+    radius.append(random.randint(args.min_r, args.max_r))
     obsts_x.append(random.randint(radius[i], screen_width - radius[i]))
     obsts_y.append(random.randint(radius[i], screen_height - radius[i]))
-for i in range(num_obsts):
+for i in range(args.num_obsts):
     obsts.append(obstacle(radius[i], [obsts_x[i], obsts_y[i]]))
 
-robot_x = 600  # Initial position
-robot_y = 100  # Initial position
-robot_phi = 5  # Initial angle
+# Could be added to argparse, but don't really see the point
+robot_x = 0.9 * screen_width * random.random()  # Initial position
+robot_y = 0.9 * screen_height * random.random()  # Initial position
+robot_phi = 2 * pi * random.random()  # Initial angle
 robot_l = 15  # Robot length
 robot_b = 6  # Robot width
 
@@ -479,10 +488,10 @@ def draw():
     # Threshold radius
     # pg.draw.circle(screen, (100, 100, 100),
                    # (int(bot.x), int(bot.y)),
-                   # dist_thresh, 0)
+                   # args.ao_threshold, 0)
     pg.draw.circle(screen, (200, 200, 200),
                    (int(bot.x), int(bot.y)),
-                   dist_thresh, 0)  # softer grey for white background
+                   args.ao_threshold, 0)  # softer grey for white background
     # Constant intensity circles
     # pg.draw.circle(screen, (250, 250, 250), src_pos, 20, 1)
     # pg.draw.circle(screen, (200, 200, 200), src_pos, 50, 1)
@@ -497,8 +506,7 @@ def draw():
     # Obstacles
     for i in range(len(obsts)):
         obsts[i].show()
-    # Light source
-    # pg.draw.circle(screen, (0, 255, 0), src_pos, 8, 0)  # green
+    # Signal source
     pg.draw.circle(screen, (0, 200, 0), src_pos, 8, 0)  # soft green
 
 
@@ -521,27 +529,27 @@ def main():
     rollout_action = np.array([1])
 
     # Commands
-    while(bot.intensity < max_intensity_thresh):
-        # Read light intensity
-        bot.intensity = simulate_light_sensor([bot.x, bot.y],
-                                              src_pos, light_std)
+    while(bot.intensity < args.src_dec_thresh):
+        # Read sensor measurement
+        bot.intensity = simulate_field_sensor([bot.x, bot.y],
+                                              src_pos, args.sensor_std)
 
         # The Finite State Machine #
-        # If no obsts in dist_thresh, run-and-tumble
-        if(mr.ld > dist_thresh and mr.fd > dist_thresh and
-           mr.rd > dist_thresh and mr.bd > dist_thresh):
+        # If no obsts in args.ao_threshold, run-and-tumble
+        if(mr.ld > args.ao_threshold and mr.fd > args.ao_threshold and
+           mr.rd > args.ao_threshold and mr.bd > args.ao_threshold):
             # If intensity is increasing, run
             if(bot.intensity > bot.intensity_last):
-                dt = run_time
+                dt = args.run_time
                 bot.run()
                 action = 1
             # Else tumble to random direction
             else:
                 dt = bot.tumble()
                 action = 2
-        # Obst(s) detected within dist_thresh. Run away from closest obst
+        # Obst(s) detected within args.ao_threshold. Run away from closest obst
         else:
-            dt = ao_time
+            dt = args.ao_time
             # Closest dist sensed among the 4 directions
             mrmin = min(mr.ld, mr.fd, mr.rd, mr.bd)
             mrindex = [mr.ld, mr.fd, mr.rd, mr.bd].index(mrmin)
@@ -558,18 +566,21 @@ def main():
     for obst in obsts:
         obstacles = np.vstack((obstacles, np.array([obst.x, obst.y, obst.r])))
     obstacles = obstacles[1:]
-    np.savez('../data/rollout_s_' + str(seed) + '_' +
-             str(time.strftime('%Y%m%d_%H-%M-%S')) +
-             '.npz', rollout_t=rollout_t, rollout_pos=rollout_pos,
-             rollout_dist=rollout_dist, rollout_action=rollout_action,
-             obstacles=obstacles)
+    # np.savez('../data/rollout_s_' + str(seed) + '_' +
+             # str(time.strftime('%Y%m%d_%H-%M-%S')) +
+             # '.npz', rollout_t=rollout_t, rollout_pos=rollout_pos,
+             # rollout_dist=rollout_dist, rollout_action=rollout_action,
+             # obstacles=obstacles)
 
-    # If intensity >= max_intensity_thresh, stop
+    # If intensity >= args.src_dec_thresh, stop
     pgloop(bot.stop())
 
     # Congratulatory screen
     time.sleep(3)
-    screen.fill((50, 55, 60))  # background
+    if args.light:
+        screen.fill((255, 255, 255))  # white background
+    else:
+        screen.fill((50, 55, 60))  # dark background
     font = pg.font.SysFont("Hack", 72)
     success_text = font.render("SUCCESS!!!", True, (0, 128, 0))
     screen.blit(success_text,
