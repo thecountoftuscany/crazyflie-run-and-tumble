@@ -1,95 +1,107 @@
-#+Title: Run and tumble + Obstacle Avoidance on the Crazyflie nano-drone
+#+Title: Run and tumble + Obstacle Avoidance on the Crazyflie palm-sized drone
 #+Author: Nishant Elkunchwar, Krishna Balasubramanian, Jessica Noe
 
-* Introduction
+This repository contains the source code for a biology-inspired "run and tumble" source seeking behaviour coupled with obstacle avoidance on a palm-sized drone, Crazyflie 2.1.  
+#+html: <p align="center"><img src="resources/cf-fire-labelled.png" alt="The drone seeking a fire in the presence of obstacles" width="500" /></p>
 
-This repository contains the source code for the bio-inspired light source seeking run and tumble + obstacle avoidance behaviour we designed and implemented on the Crazyflie nano-drone as a part of the course project for the course Biology Inspired Robotics at the University of Washington.
+* Major highlights
+** [[./crazyflie-firmware/src/deck/drivers/src][Deck drivers]]
+  - [[./crazyflie-firmware/src/deck/drivers/src/bh1750deck.c][BH1750]] light sensor (if you are not using the continuous high resolution mode on the BH1750 sensor, please refer to the sensor datasheet and change the =conv_factor=, =CONT_HI_RES_MODE= in =i2cdevWriteByte()= and delay time in =vTaskDelayUntil()= accordingly)
+  - [[./crazyflie-firmware/src/deck/drivers/src/hdc2010deck.c][HDC2010]] temperature sensor
+  - [[./crazyflie-firmware/src/deck/drivers/src/nrfI2Cdeck.c][nRF52840]] dongle configured as an TWI device to measure bluetooth RSSI (note: this is possible using the on-board nRF chip too, but this method was used to quickly filter out bluetooth advertising packets from a particular MAC address by flashing the nRF dongle)
+** A simulation environment for designing and testing the algorithm
+See [[./scripts/simulation.py][scripts/simulation.py]].
+./resources/simulation.webm.mov
+Might also be of interest: [[https://github.com/thecountoftuscany/unicycle-navigation][unicycle-navigation]], a repository that simulates go-to-goal (with known robot and goal positions) and obstacle avoidance behaviours in a finite state machine. That repository is more educational in purpose, but this simulation builds upon that one and adds simulated sensors, etc
+** Light source seeking
+See [[./scripts/run-and-tumble-alg_light.py][scripts/run-and-tumble-alg_light.py]].
+./resources/light.webm.mov
+** Temperature source seeking
+See [[./scripts/run-and-tumble-alg_temp.py][scripts/run-and-tumble-alg_temp.py]].
+./resources/fire.webm.mov
+./resources/fire_thermal-cam.webm.mov
+** Keyboard-based crazyflie control, live plotting and logging
+See [[./scripts/cflibController.py][scripts/cflibController.py]]. This script can be invoked to manually control the crazyflie. Also contains functionality to live plot drone position estimate, log various measurements (eg. position, temperature, light intensity, multiranger ranges) to a csv file. Please use the =-h= flag for usage
+* Using this repository
+- Patch a recently cloned copy of the [[https://github.com/bitcraze/crazyflie-firmware][crazyflie-firmware]] with the contents from [[./crazyflie-firmware/src/deck/drivers/src]]
+- Modify the =crazyflie-firmware/Makefile= to include any of the new drivers from this repository being used (eg. =bh1750deck.c= in the example below):
+#+begin_src
+# Decks
+PROJ_OBJ += bh1750deck.o
+# PROJ_OBJ += hdc2010deck.o
+# PROJ_OBJ += nrfI2Cdeck.o
+#+end_src
+- Copy =crazyflie-firmware/tools/make/config.mk.example= to =crazyflie-firmware/tools/make/config.mk= and force loading of any new drivers (eg. =bh1750deck= driver in the example below):
+#+begin_src
+# bh1750 deck
+CFLAGS += -DDECK_FORCE=bh1750Deck
+DEBUG=1
 
-*Major highlights*:
-- a deck driver for the crazyflie for the BH1750 light sensor 
-- the final algorithm implemented for the crazyflie ([[https://www.youtube.com/watch?v=fgn8WjtvQ8k][video here]])
-- a simulation environment for designing and testing the algorithm ([[https://www.youtube.com/watch?v=8yBKAacOlP4][video here]])
-- a keyboard input publisher and a controller script to control the crazyflie's motion according to the keyboard input
+# hdc2010 deck
+# CFLAGS += -DDECK_FORCE=hdc2010Deck
 
-The following components were added to the crazyflie:
-- the FlowDeck from Bitcraze, which is an optic flow sensor combined with a time of flight sensor
-- the multiranger deck from Bitcraze, which is a laser range finder in 5 directions (left, front, right, back, top)
-- a BH1750 light intensity sensor mounted on a prototyping deck
-
-The crazyflie with all of the components:
-[[./resources/bcrazy.jpg]]
-
-The contents of the repository are described below:
-- ~.config~ contains the logging configurations so that sensor data from the crazyflie can be accessed using [[https://github.com/JGSuw/rospy_crazyflie][rospy_crazyflie]] and also using [[https://github.com/bitcraze/crazyflie-clients-python][cfclient]]
-- ~catkin_ws~ contains the three custom ROS message types created to publish light intensity, multiranger distances and action state of the crazyflie (1 for run, 2 for tumble, 3 for obstacle avoidance)
-- ~crazyflie-firmware~ contains only the additions we made to the original [[https://github.com/bitcraze/crazyflie-firmware][crazyflie-firmware]] - which is a deck driver for the BH1750 light sensor. If you are not using the continuous high resolution mode on the BH1750 sensor, please refer to the sensor datasheet and change the ~conv_factor~, ~CONT_HI_RES_MODE~ in ~i2cdevWriteByte()~ and delay time in ~vTaskDelayUntil()~ accordingly.
-- ~documents~ contains the project pre-proposal and final poster
-- ~resources~ contains the images used in this readme
-- ~scripts~ contains the following Python scripts:
-  - ~cfController.py~ - controls the crazyflie motion using keyboard input published by ~keyinputPublisher.py~
-  - ~intensityPlotter.py~ - plots the x,y position of the crazyflie on the x,y axes and the detected light intensity on the z axis using ~matplotlib~. The colour of the plot denotes the current action being performed by the crazyflie - green for run, blue for tumble, and red for obstacle avoidance
-  - ~keyinputPublisher.py~ - publishes keyboard input to a ROS topic which can be used by another subscriber to control the crazyflie
-  - ~run-and-tumble-alg.py~ - run on an external computer, this script sends the control commands to the crazyflie based on sensor data published on local rostopics by ~sensorPublisher.py~
-  - ~sensorPublisher.py~ - publishes crazyflie position, current detected light intensity and distances to obstacles in four directions (left, front, right, front) of the crazyflie. Needs ~default.launch~ from ~rospy_crazyflie~ to be running and the crazyflie dongle plugged in. (Also, add the crazyflie address to ~rospy_crazyflie/config/config.yaml~)
-  - ~simulation.py~ - runs the algorithm in a [[https://pygame.org][PyGame]] simulation
-
-* Instructions to run scripts and reproduce results
-
-** Running the algorithm in simulation
-- Install =numpy= and =pygame= using =pip= or =conda= or any other preferred method.
-- Run =python ./scripts/simulation.py= to run a simulation with randomly placed obstacles. Change the =seed= from 0 to some other value (or remove the =random.seed()= call) at the beginning of the script to change the obstacle placement within the environment.
-On running, the script also generates a =rollout_s_seed_date_time.npz= file in =../data/= that contains the trajectory information which can later be used with =./scripts/plotting.py= to generate trajectory plots or distance-vs-time plots as in the paper.
-- (Optional) Edit the =fnames= list in =./scripts/plotting.py= to contain the =.npz= files whose trajectories have to be plotted. The files to reproduce the results in the submitted paper have already been included. Then run =python plotting.py= (after changing directories). This first shows the distance-vs-time plot for the simluated trajectories in the paper, then a plot of the corresponding trajectories in the simulated environment and then the plot of the actual drone trajectory as shown in the paper. Edit the =bag_no= variable to get plots for each of the three recorded experiment trials.
-
-** Running the algorithm on the drone
-*** Installations and setup required
-- Follow the instructions [[https://github.com/bitcraze/crazyflie-firmware][here]] to get the default crazyflie firmware.
-- Patch the default firmware with the contents from =./crazyflie-firmware= and run =make=
-- Flash the modified firmware on to the drone by running the =make cload= recipe with the bluetooth USB dongle plugged in
-- Install a ROS distribution for your operating system (instructions [[http://wiki.ros.org/ROS/Installation][here]])
-- Install =rospy_crazyflie= (instructions [[https://github.com/JGSuw/rospy_crazyflie][here]]) and =crazyflie-lib-python= (instructions [[https://github.com/bitcraze/crazyflie-lib-python][here]])
-- Add the contents of =./catkin_ws/src/rospy_crazyflie= directory to =/path_to_your_catkin_ws/src/rospy_crazyflie= and run =catkin_make=
-- (Optional) Install =crazyflie-clients-python= (instructions [[https://github.com/bitcraze/crazyflie-clients-python][here]]) to get =cfclient=
-- Place the contents of the =./.config= directory in your =$HOME/.config= or =$XDG_CONFIG_HOME=
-
-*** Running the algorithm
-- Turn on the drone with the flowdeck and multiranger deck added. Also make sure that the BH1750 light sensor is connected to the power, ground and I2C pins on the drone
-- Add your crazyflie's =link_uri= (can be found using =cfclient=, for example) to =$HOME/.config/cfclient/config.json=
-- Run =roslaunch rospy_crazyflie default.launch= to connect to the crazyflie. Make sure the terminal output shows that the drone has connected
-- Change directory using =cd ./scripts=
-- Run =python sensorPublisher.py= to have sensor values published to rostopics
-- (Optional) Run =python keyinputPublisher.py= and then =python cfController.py= to move the crazyflie using WASD keyboard input for testing. The 'z' key triggers landing
-- (Optional) run =python intensityPlotter.py= to live plot the drone's position and intensity on a 3D plot
-- If the =cfController.py= script was used to manually control the drone, make sure that the =cfController= process has been killed before moving on. Run =python run-and-tumble-alg.py= to execute the algorithm
-
+# nrf I2C deck
+# CFLAGS += -DDECK_FORCE=nrfI2CDeck
+#+end_src
+- Compile and flash the firmware to a crazyflie. Instructions [[https://www.bitcraze.io/documentation/repository/crazyflie-firmware/master/building-and-flashing/build/][here]].
+* Description of repository contents
+- [[./crazyflie-firmware/src/deck/drivers/src][crazyflie-firmware/src/deck/drivers/src]]: the deck drivers for the three devices used for signal strength detection
+- [[./data][data]]: data recorded from all experiments. See the [[Results][Results]] section in this readme for details
+- [[./docs][docs]]: relevant datasheets etc
+- [[./resources][resources]]: resources used in this README
+- [[./scripts][scripts]]: all scripts
+  - [[./scripts/plots][scripts/plots]]: scripts used for generating all plots from [[./data][data]]. See the [[Results][Results]] section in the readme for details
+  - [[./scripts/cflibController.py][scripts/cflibController.py]]: manual control and live plotting of the crazyflie along with logging measurements to a csv file
+  - [[./scripts/run-and-tumble-alg_light.py][scripts/run-and-tumble-alg_light.py]] and [[./scripts/run-and-tumble-alg_temp.py][scripts/run-and-tumble-alg_temp.py]]: the algorithms used for each source seeking method. The only major difference between the two at the high level is that the temperature seeking algorithm has a stop command for a few seconds to let the temperature sensor stabilize at a measurement. See the respective files for more details
+  - [[./scripts/simulation.py][scripts/simulation.py]]: runs a simulation of a robot seeking a source with an inverse square potential in the presence of obstacles. Use the =-h= flag for details
+* Requirements
+- The following python packages (obtain using =pip=, =conda=, your OS distribution package manager or any preferred means:
+  - =numpy=
+  - =pygame=
+  - [[https://github.com/bitcraze/crazyflie-lib-python][cflib]]
+  - =argparse=
+- [[https://github.com/bitcraze/crazyflie-firmware][crazyflie-firmware]] (just clone the repository)
 * Method
+** Source characterization
+#+html: <p align="center"><img src="resources/src-characterisation.png" alt="Source signal characterization" width="500" /></p>
+(left) Light intensity distribution of an indoor light source using drone's position estimate. [top] with 2D position [bottom] along a straight line path towards the source,
+(middle) Temperature distribution for a fire using ground truth distance [top], and drone position estimate [bottom],
+(right) Bluetooth source packet detection rate distribution with ground truth distance
 
-** Light source characterisation
-The crazyflie was first controlled from the keyboard and flown in the arena in a closely packed trajectory to capture the light intensity distribution from the light source (the path can be seen [[./resources/intensity_path.png][here]]). The plot below shows the light intensity distribution (on the z axis) vs the x,y position of the crazyflie (on the x,y axes) inside the testing arena:
-[[./resources/intensity_ortho.png]]
-
-As we can see, the intensity variation in both the x and the y axes varies roughly as inverse square distance (as expected from a non-extended, ideal light source). Also see the variation in intensity [[./resources/intensity_x.png][in the axis along the direction towards the light source]] and [[./resources/intensity_y.png][in the transverse axis]]. Hence a constant/r^2 variation was modeled in the simulation.
-
+We can see that for the light source the intensity distribution qualitatively follows an [[https://en.wikipedia.org/wiki/Inverse-square_law#Light_and_other_electromagnetic_radiation][inverse-squared distribution]] as expected from a point light source. Hence this choice in the simulation was reasonable. For the fire we see from the top plot that it takes a while for the temperature sensor to reach a steady state (since it is not an ideal blackbody) hence we add a stop command for a few seconds after every run to ensure the sensor measurements have stabilized. Future work will focus on extending this to Radio Frequency (RF) sources as it can be observed that bluetooth packet rate also follows a roughly monotonic trend.
 ** Simulation
 We used ~PyGame~ to create the simulation environment to for rapid testing of the algorithm before deploying it on the actual drone. The code in [[./scripts/simulation.py][simulation.py]] is pretty self-explanatory to understand what is going on.
-
 ** Algorithm
 The algorithm is implemented as the following finite state machine:
-[[./resources/FSM.png]]
+#+html: <p align="center"><img src="resources/fsm.png" alt="The Finite State Machine for the algorithm" width="500" /> <img src="resources/algo-params.png" alt="Algorithm parameter values" width="450" /></p>
+The three behaviours are:
+- *run*: move forward with a constant velocity
+- *tumble*: turn left or right to a random angle
+- *avoid-obstacle*: move directly away from the closest obstacle along the direction of the distance sensor, and change heading away slightly
 
-The exact implementation details can be seen in [[./scripts/run-and-tumble-alg.py][run-and-tumble-alg.py]].
+The exact implementation details can be seen in [[./scripts/run-and-tumble-alg_light.py][scripts/run-and-tumble-alg_light.py]] and [[./scripts/run-and-tumble-alg_temp.py][scripts/run-and-tumble-alg_temp.py]].
 
-*Note*: The last intensity is taken to be the average of last 10 recorded intensity values to get rid of sensor noise.
-
-* Further details
-Please refer to [[./documents/Project-Final_Poster.pdf][the poster for the project]] for more details. In case further information is required, please contact one of the authors listed below.
-
+*Note*: The last intensity is taken to be the average of last 10 recorded intensity values to minimize errors due to sensor noise.
+* Results
+** Distance to source always decreases
+For example, various runs from the simulation:
+#+html: <p align="center"><img src="resources/sim-dist.png" alt="Distance to source decreases with time" width="700" /></p>
+(left) The blue circles are randomly placed obstacles. Multiple trajectories (different colors) with different starting points (red dots) at the same distance from the source (black diamond)
+(right) Variation of distance of the robot from the light source for the trajectories on the left
+** Increasing obstacle avoidance distance threshold increases source seeking time
+For example, various runs from the simulation:
+#+html: <p align="center"><img src="resources/sim-ao-thresh-time.png" alt="Average source seeking time for different obstacle avoidance distance thresholds" width="500" /></p>
+** Light source seeking experiments
+#+html: <p align="center"><img src="resources/algo-light.png" alt="Light source seeking experiment results" width="650" /></p>
+** Heat source seeking experiments
+#+html: <p align="center"><img src="resources/algo-temp.png" alt="Heat source seeking experiment results" width="650" /></p>
 * Authors
-
+In case more details are needed, please contact one of the authors listed below
 - Nishant Elkunchwar
 - Krishna Balasubramanian
 - Jessica Noe
-
 * Acknowledgements
+Thanks to [[https://faculty.washington.edu/minster/][professor Sawyer Fuller]] and [[https://www.biology.washington.edu/people/profile/melanie-anderson][Melanie Anderson]] for access to hardware, examples of software and advice.
 
-Thanks to [[https://faculty.washington.edu/minster/][professor Sawyer Fuller]] and Melanie Anderson for access to hardware, examples of software and advice.
+_Note_:
+This project started as a course project for the course [[https://faculty.washington.edu/minster/bio_inspired_robotics/][biology-inspired robotics]] taken by [[https://faculty.washington.edu/minster/][Prof. Sawyer B. Fuller]] at the University of Washington during Winter 2020. The original goal was light source seeking ([[https://www.youtube.com/watch?v=fgn8WjtvQ8k][video here]]). [[https://www.bitcraze.io/2020/07/intro-to-autonomous-robotics-with-the-crazyflie/][This blog post]] on the Bitcraze blog provides a good introduction. However the information contained in that blog post (and previous versions of this README) is outdated considering the current contents of this repository because the project has been in continued development after the course completion and it has increased in scope and some implementation details have been changed. The original project poster, proposal etc can be accessed from [[https://github.com/thecountoftuscany/crazyflie-run-and-tumble/tree/ca5551c61cfac40ec27befd05dfa0bb7c93e0499/documents][this commit]]. The initial approach was based on using the ROS ecosystem and the [[https://github.com/JGSuw/rospy_crazyflie][rospy_crazyflie]] library (a wrapper around [[https://github.com/bitcraze/crazyflie-lib-python][cflib]]) used in the [[https://depts.washington.edu/airlab/files/anderson_2019.pdf][smellicopter]] paper. We currently use directly use cflib to be Python3 compliant. The ros-based scripts and other deprecated files can be accessed from [[https://github.com/thecountoftuscany/crazyflie-run-and-tumble/tree/77aa4daa39d9fa7ff97b7fb6dfe7d1799c04ed83][this commit]]. The current version also does not use a virtual machine.
