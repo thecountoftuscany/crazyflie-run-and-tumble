@@ -51,6 +51,7 @@ DEBUG=1
 # CFLAGS += -DDECK_FORCE=nrfI2CDeck
 #+end_src
 - Compile and flash the firmware to a crazyflie. Instructions [[https://www.bitcraze.io/documentation/repository/crazyflie-firmware/master/building-and-flashing/build/][here]].
+- Use the relevant script from [[./scripts][scripts]].
 * Description of repository contents
 - [[./crazyflie-firmware/src/deck/drivers/src][crazyflie-firmware/src/deck/drivers/src]]: the deck drivers for the three devices used for signal strength detection
 - [[./data][data]]: data recorded from all experiments. See the [[Results][Results]] section in this readme for details
@@ -80,7 +81,18 @@ We can see that for the light source the intensity distribution qualitatively fo
 We used ~PyGame~ to create the simulation environment to for rapid testing of the algorithm before deploying it on the actual drone. The code in [[./scripts/simulation.py][simulation.py]] is pretty self-explanatory to understand what is going on.
 ** Algorithm
 The algorithm is implemented as the following finite state machine:
-#+html: <p align="center"><img src="resources/fsm.png" alt="The Finite State Machine for the algorithm" width="500" /> <img src="resources/algo-params.png" alt="Algorithm parameter values" width="450" /></p>
+#+html: <p align="center"><img src="resources/fsm.png" alt="The Finite State Machine for the algorithm" width="500" /></p>
+The parameters for the algorithm are:
+|------------------+------------+---------------+--------------|
+| Parameter        | Simulation | Light seeking | Heat seeking |
+|------------------+------------+---------------+--------------|
+| =stop_threshold= | 10^4       | 800 lux       | 13 Celcius   |
+| =fwd_velocity=   | 90 px/sec  | 0.1 m/s       | 0.2 m/s      |
+| =ao_time=        | 100 ms     | 2 s           | 0.5 s        |
+| =ao_angle=       | 0.1 deg    | 20 deg        | 20 deg       |
+| =run_time=       | 10 ms      | 1 s           | 1 s          |
+| =obst_threshold= | 40 px      | 0.5 m         | 0.35 m       |
+|------------------+------------+---------------+--------------|
 The three behaviours are:
 - *run*: move forward with a constant velocity
 - *tumble*: turn left or right to a random angle
@@ -97,7 +109,14 @@ For example, various runs from the simulation:
 (right) Variation of distance of the robot from the light source for the trajectories on the left
 ** Increasing obstacle avoidance distance threshold increases source seeking time
 For example, various runs from the simulation:
-#+html: <p align="center"><img src="resources/sim-ao-thresh-time.png" alt="Average source seeking time for different obstacle avoidance distance thresholds" width="500" /></p>
+|------------------+-------------------------------|
+| =obst_threshold= | average seek time for 10 runs |
+|------------------+-------------------------------|
+| 20 px            | 6.54 s                        |
+| 40 px            | 11.10 s                       |
+| 80 px            | 13.74 s                       |
+| 100 px           | 22.88 s                       |
+|------------------+-------------------------------|
 ** Light source seeking experiments
 #+html: <p align="center"><img src="resources/algo-light.png" alt="Light source seeking experiment results" width="650" /></p>
 ** Heat source seeking experiments

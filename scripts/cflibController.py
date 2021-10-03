@@ -15,27 +15,33 @@ import sys
 import os
 import numpy as np
 
+parser = argparse.ArgumentParser(description='Script for controlling the crazyflie, logging sensor data and live plotting position')
+parser.add_argument('-p', '--log_pos', action='store_true', default=False, help='Log position')
+parser.add_argument('-t', '--log_temp', action='store_true', default=False, help='Log temperature')
+parser.add_argument('-r', '--log_range', action='store_true', default=False, help='Log range')
+parser.add_argument('-c', '--manual_control', action='store_true', default=False, help='Manually control flying when passed; logging only and no flight if not passed')
+parser.add_argument('-l', '--live_plot', action='store_true', default=False, help='Live plot the 3D position')
+parser.add_argument('-w', '--write_to_file', action='store_true', default=False, help='Write logging variables to file')
+parser.add_argument('-u', '--uri', type=str, default='radio://0/80/2M/E7E7E7E7E7', help='URI of the crazyflie to connect to')
+parser.add_argument('-th', '--takeoff_height', type=float, default=0.3, help='Takeoff height of the drone (in m)')
+parser.add_argument('-v', '--lin_vel', type=float, default=0.1, help='Linear velocity of the drone (in m/s)')
+parser.add_argument('-a', '--ang_vel', type=float, default=360.0/10.0, help='Angular velocity of the drone (in rotations/s)')
+parser.add_argument('-d', '--debug_print', action='store_true', default=False, help='Whether to print debug messages to the terminal')
+parser.add_argument('-b', '--use_blitting', action='store_true', default=False, help='Whether to use blitting in the live plot.\
+        When also controlling the crazyflie, blitting causes faster plotting, but removes dynamically changing axes limits for example.\
+        Only applies if both controlling and plotting. If only plotting position by manually moving the crazyflie, non-blitted plots are also as responsive.\
+        Hence keep this defaulted to False.\
+        Default axes limits to blit are: [-1, 1] for both x and y axes and [0, TAKEOFF_HEIGHT+0.2] for the z axis.')
+args = parser.parse_args()
 
 ## Some default URIs. Delegated this to the --uri argument with a default
 # uri = 'radio://0/69/2M/E7E7E7E7E7'
 # uri = 'radio://0/13/2M/E7E7E7E7E7'
 
-takeoff_height = 0.3    # m
-forward_vel = 0.1       # m/s
-turn_rate = 360.0 / 10.0 # rot/s
-
-## Whether to use blitting in the live plot
-    # When also controlling the crazyflie, blitting causes faster ploting,
-    # but removes dynamically changing axes limits for example.
-# Only applies if both controlling and plotting. If only plotting position
-# by manually moving the crazyflie, non-blitted plots are also as reponsive.
-# Hence keep this defaulted to False
-BLIT = False  # set to True if need more responsive plotting with fixed axes limits
-             # set to False if need dynamic axes limits at the cost of slow plotting
 ## Default axes limits if BLIT. Change these if needed
 xlims = [-1, 1]
 ylims = [-1, 1]
-zlims = [0, takeoff_height+0.2]
+zlims = [0, args.takeoff_height+0.2]
 
 is_FlowDeck_attached = True
 ## Only output errors from the logging framework
@@ -52,29 +58,26 @@ def FlowDeckCheck(name, value):
     global is_FlowDeck_attached
     if value:
         is_FlowDeck_attached = True
-        print('Flow Deck is attached!')
+        if args.debug_print:
+            print('Flow Deck is attached!')
     else:
         is_FlowDeck_attached = False
-        print('Flow Deck is NOT attached!')
+        if args.debug_print:
+            print('Flow Deck is NOT attached!')
 
 
 def start(scf):
-    with MotionCommander(scf, default_height=takeoff_height) as mc:
-        # time.sleep(1)
+    with MotionCommander(scf, default_height=args.takeoff_height) as mc:
         post_takeoff(mc)
 
 
 def post_takeoff(mc):
-    # rospy.Subscriber('keyinput', String, manual_control_callback)
     pginit(mc)
-    # mc.forward(0.5, velocity=forward_vel)
-    # mc.back(0.5, velocity=forward_vel)
-    # time.sleep(1)
 
 
 def log_pos_callback(timestamp, data, logconf):
-    # if not args.manual_control:
-        # print("x={}, y={}, z={}".format(data['stateEstimate.x'], data['stateEstimate.y'], data['stateEstimate.z']))
+    if args.debug_print:
+        print("x={}, y={}, z={}".format(data['stateEstimate.x'], data['stateEstimate.y'], data['stateEstimate.z']))
     if args.write_to_file:
         pos_file_handler.write("{},{},{},{}\n".format(timestamp, data['stateEstimate.x'], data['stateEstimate.y'], data['stateEstimate.z']))
     if args.live_plot:
@@ -89,7 +92,7 @@ def log_pos_callback(timestamp, data, logconf):
 
 
 def log_temp_callback(timestamp, data, logconf):
-    if not args.manual_control:
+    if args.debug_print:
         print("temp={}".format(data['HDC2010.temp']))
     if args.write_to_file:
         temp_file_handler.write("{},{}\n".format(timestamp, data['HDC2010.temp']))
@@ -98,9 +101,8 @@ def log_temp_callback(timestamp, data, logconf):
 
 
 def log_range_callback(timestamp, data, logconf):
-    # if not args.manual_control:
-        # print("rangeLeft={}, rangeFront={}, rangeRight={}, rangeBack={}".format(data['range.left'], data['range.front'], data['range.right'], data['range.back']))
-    print(data)
+    if args.debug_print:
+        print("rangeLeft={}, rangeFront={}, rangeRight={}, rangeBack={}".format(data['range.left'], data['range.front'], data['range.right'], data['range.back']))
     if args.write_to_file:
         range_file_handler.write("{},{},{},{},{}\n".format(timestamp, data['range.left'], data['range.front'], data['range.right'], data['range.back']))
     # global rangeLeft, rangeFront, rangeRight, rangeBack
@@ -135,22 +137,22 @@ def pginit(mc):
                 mc.start_linear_motion(1, 1, 0)
             elif event.type == KEYDOWN and event.key == K_w:
                 mc.stop()
-                mc.start_forward(velocity=forward_vel)
+                mc.start_forward(velocity=args.lin_vel)
             elif event.type == KEYDOWN and event.key == K_s:
                 mc.stop()
-                mc.start_back(velocity=forward_vel)
+                mc.start_back(velocity=args.lin_vel)
             elif event.type == KEYDOWN and event.key == K_a:
                 mc.stop()
-                mc.start_left(velocity=forward_vel)
+                mc.start_left(velocity=args.lin_vel)
             elif event.type == KEYDOWN and event.key == K_d:
                 mc.stop()
-                mc.start_right(velocity=forward_vel)
+                mc.start_right(velocity=args.lin_vel)
             elif event.type == KEYDOWN and event.key == K_q:
                 mc.stop()
-                mc.start_turn_left(rate=turn_rate)
+                mc.start_turn_left(rate=args.ang_vel)
             elif event.type == KEYDOWN and event.key == K_e:
                 mc.stop()
-                mc.start_turn_right(rate=turn_rate)
+                mc.start_turn_right(rate=args.ang_vel)
             elif event.type == KEYDOWN and event.key == K_f:
                 mc.stop()
             elif event.type == KEYDOWN and event.key == K_z:
@@ -178,8 +180,8 @@ def live_plot(i, fig, ax, line):
             ax.set_ylim(-1, 1)
         else:
             ax.set_ylim(min(traj_y), max(traj_y))
-        if max(traj_z) < takeoff_height+0.2:
-            ax.set_zlim(0, takeoff_height+0.2)
+        if max(traj_z) < args.takeoff_height+0.2:
+            ax.set_zlim(0, args.takeoff_height+0.2)
         else:
             ax.set_zlim(0, max(traj_z))
     return line,
@@ -192,15 +194,6 @@ def manual_control(scf):
 
 
 if __name__=='__main__':
-    parser = argparse.ArgumentParser(description='Script for controlling the crazyflie, logging sensor data and live plotting position')
-    parser.add_argument('-p', '--log_pos', action='store_true', default=False, help='Log position')
-    parser.add_argument('-t', '--log_temp', action='store_true', default=False, help='Log temperature')
-    parser.add_argument('-r', '--log_range', action='store_true', default=False, help='Log range')
-    parser.add_argument('-c', '--manual_control', action='store_true', default=False, help='Manually control flying when passed; logging only and no flight if not passed')
-    parser.add_argument('-l', '--live_plot', action='store_true', default=False, help='Live plot the 3D position')
-    parser.add_argument('-w', '--write_to_file', action='store_true', default=False, help='Write logging variables to file')
-    parser.add_argument('-u', '--uri', type=str, default='radio://0/80/2M/E7E7E7E7E7', help='URI of the crazyflie to connect to')
-    args = parser.parse_args()
 
     if args.live_plot and not args.log_pos:
         print('Position logging (-p or --log_pos) compulsary if using live plotting (-l or --live_plot). Check the docstring with -h for more details. Exiting.')
