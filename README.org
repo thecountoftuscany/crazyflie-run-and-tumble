@@ -1,4 +1,4 @@
-#+Title: Run and tumble + Obstacle Avoidance on the Crazyflie palm-sized drone
+#+Title: Run and tumble + obstacle avoidance on the Crazyflie palm-sized drone
 #+Author: Nishant Elkunchwar, Krishna Balasubramanian, Jessica Noe
 
 This repository contains the source code for a biology-inspired "run and tumble" source seeking behaviour coupled with obstacle avoidance on a palm-sized drone, Crazyflie 2.1.  
@@ -63,15 +63,16 @@ DEBUG=1
   - [[./scripts/run-and-tumble-alg_light.py][scripts/run-and-tumble-alg_light.py]] and [[./scripts/run-and-tumble-alg_temp.py][scripts/run-and-tumble-alg_temp.py]]: the algorithms used for each source seeking method. The only major difference between the two at the high level is that the temperature seeking algorithm has a stop command for a few seconds to let the temperature sensor stabilize at a measurement. See the respective files for more details
   - [[./scripts/simulation.py][scripts/simulation.py]]: runs a simulation of a robot seeking a source with an inverse square potential in the presence of obstacles. Use the =-h= flag for details
 * Requirements
-- The following python packages (obtain using =pip=, =conda=, your OS distribution package manager or any preferred means:
+- The following python packages (obtain using =pip=, =conda=, your OS distribution package manager or any other preferred means):
   - =numpy=
   - =pygame=
   - [[https://github.com/bitcraze/crazyflie-lib-python][cflib]]
   - =argparse=
+  - =matplotlib=
 - [[https://github.com/bitcraze/crazyflie-firmware][crazyflie-firmware]] (just clone the repository)
 * Method
 ** Source characterization
-#+html: <p align="center"><img src="resources/src-characterization.png" alt="Source signal characterization" width="500" /></p>
+#+html: <p align="center"><img src="resources/src-characterization.png" alt="Source signal characterization" width="800" /></p>
 (left) Light intensity distribution of an indoor light source using drone's position estimate. [top] with 2D position [bottom] along a straight line path towards the source,
 (middle) Temperature distribution for a fire using ground truth distance [top], and drone position estimate [bottom],
 (right) Bluetooth source packet detection rate distribution with ground truth distance
@@ -122,12 +123,16 @@ For example, various runs from the simulation:
 ** Heat source seeking experiments
 #+html: <p align="center"><img src="resources/algo-temp.png" alt="Heat source seeking experiment results" width="650" /></p>
 * Authors
-In case more details are needed, please contact one of the authors listed below
-- Nishant Elkunchwar
-- Krishna Balasubramanian
-- Jessica Noe
+In case more details are needed, please contact one of the authors listed below:
+- [[https://www.linkedin.com/in/nishant-elkunchwar][Nishant Elkunchwar]]
+- [[https://homes.cs.washington.edu/~vsiyer/][Vikram Iyer]]
+- [[https://www.biology.washington.edu/people/profile/melanie-anderson][Melanie Anderson]]
+- [[https://www.linkedin.com/in/krishna-balasubramanian-79199289/][Krishna Balasubramanian]]
+- [[https://www.linkedin.com/in/jessica-noe-a7a77313/][Jessica Noe]]
+- [[https://www.linkedin.com/in/yashtalwekar][Yash Talwekar]]
+- [[https://faculty.washington.edu/minster/][Sawyer B. Fuller]]
 * Acknowledgements
-Thanks to [[https://faculty.washington.edu/minster/][professor Sawyer Fuller]] and [[https://www.biology.washington.edu/people/profile/melanie-anderson][Melanie Anderson]] for access to hardware, examples of software and advice.
+The authors would like to thank [[https://yogeshchukewad.com/][Yogesh Chukewad]] for insightful suggestions as well as [[https://staff.washington.edu/jmjames/][Johannes James]] for assistance with the fire seeking experiments. The authors would also like to thank [[https://www.afrl.af.mil/AFOSR/][The Air Force Office of Scientific Research (AFOSR)]], grant no. FA9550-14-1-0398 by [[http://nifti.washington.edu/][The Air Force Center of Excellence on Nature-Inspired Flight Technologies and Ideas (NIFTI)]] for funding the equipment used in this research.
 
-*Note*:
-This project started as a course project for the course [[https://faculty.washington.edu/minster/bio_inspired_robotics/][biology-inspired robotics]] taken by [[https://faculty.washington.edu/minster/][Prof. Sawyer B. Fuller]] at the University of Washington during Winter 2020. The original goal was light source seeking ([[https://www.youtube.com/watch?v=fgn8WjtvQ8k][video here]]). [[https://www.bitcraze.io/2020/07/intro-to-autonomous-robotics-with-the-crazyflie/][This blog post]] on the Bitcraze blog provides a good introduction. However the information contained in that blog post (and previous versions of this README) is outdated considering the current contents of this repository because the project has been in continued development after the course completion and it has increased in scope and some implementation details have been changed. The original project poster, proposal etc can be accessed from [[https://github.com/thecountoftuscany/crazyflie-run-and-tumble/tree/ca5551c61cfac40ec27befd05dfa0bb7c93e0499/documents][this commit]]. The initial approach was based on using the ROS ecosystem and the [[https://github.com/JGSuw/rospy_crazyflie][rospy_crazyflie]] library (a wrapper around [[https://github.com/bitcraze/crazyflie-lib-python][cflib]]) used in the [[https://depts.washington.edu/airlab/files/anderson_2019.pdf][smellicopter]] paper. We currently use directly use cflib to be Python3 compliant. The ros-based scripts and other deprecated files can be accessed from [[https://github.com/thecountoftuscany/crazyflie-run-and-tumble/tree/77aa4daa39d9fa7ff97b7fb6dfe7d1799c04ed83][this commit]]. The current version also does not use a virtual machine.
+*Note:*
+This project started as a course project for the course [[https://faculty.washington.edu/minster/bio_inspired_robotics/][biology-inspired robotics]] taken by [[https://faculty.washington.edu/minster/][Prof. Sawyer B. Fuller]] at the University of Washington during Winter 2020. The original goal was light source seeking ([[https://www.youtube.com/watch?v=fgn8WjtvQ8k][video here]]). [[https://www.bitcraze.io/2020/07/intro-to-autonomous-robotics-with-the-crazyflie/][This blog post]] on the Bitcraze blog provides a good introduction. However the information contained in that blog post (and previous versions of this README) is outdated considering the current contents of this repository because the project has been in continued development after the course completion (at [[https://depts.washington.edu/airlab/][AIRlab]]) and it has increased in scope and some implementation details have been changed. The original project poster, proposal etc can be accessed from [[https://github.com/thecountoftuscany/crazyflie-run-and-tumble/tree/ca5551c61cfac40ec27befd05dfa0bb7c93e0499/documents][this commit]]. The initial approach was based on using the ROS ecosystem and the [[https://github.com/JGSuw/rospy_crazyflie][rospy_crazyflie]] library (a wrapper around [[https://github.com/bitcraze/crazyflie-lib-python][cflib]]) used in the [[https://depts.washington.edu/airlab/files/anderson_2019.pdf][smellicopter]] paper. We currently directly use cflib to be Python3 compliant. The ros-based scripts and other deprecated files can be accessed from [[https://github.com/thecountoftuscany/crazyflie-run-and-tumble/tree/ae6a137a5c590964edecda536cc7a88f88fce83f][this commit]]. The current version also does not use a virtual machine.
